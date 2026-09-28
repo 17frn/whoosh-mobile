@@ -1,0 +1,66 @@
+/* Global variables & tokens */
+:root {
+  --bg-color: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --accent-1: #6366f1;
+  --accent-2: #14b8a6;
+  --accent-3: #0ea5e9;
+  --accent-4: #f43f5e;
+  --accent-5: #8b5cf6;
+  --accent-6: #f59e0b;
+  --accent-7: #fd7979;
+  --accent-8: #3f9aae;
+  --border-light: #e2e8f0;
+
+  /* Card configuration */
+  --timeline-card-bg: #ffffff;
+  --timeline-card-border: 1px solid var(--border-light);
+  --timeline-card-radius: 12px;
+  --timeline-card-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+  
+  /* Hover State */
+  --timeline-card-hover-transform: translateY(-4px);
+  --timeline-card-hover-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+}
+
+html {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  position: relative;
+  min-height: 100vh;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.portfolio-container {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
+}
+
+/* === TABLET (481px - 1024px) === */
+@media (max-width: 1024px) {
+  .portfolio-container {
+    padding: 50px 30px;
+  }
+}
+
+/* === MOBILE (≤ 480px) === */
+@media (max-width: 480px) {
+  .portfolio-container {
+    padding: 20px 16px;
+  }
+}

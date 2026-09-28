@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WHOOSH</string>
+    <string name="title_activity_main">WHOOSH</string>
+    <string name="package_name">com.farhan.timelinemomen</string>
+    <string name="custom_url_scheme">com.farhan.timelinemomen</string>
+</resources>
