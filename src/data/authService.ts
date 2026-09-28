@@ -133,6 +133,7 @@ export async function getTimelineData(sessionId: string): Promise<TimelineData[]
     .from('moments')
     .select('*')
     .eq('session_id', sessionId)
+    .neq('year', 9999)
     .order('created_at', { ascending: false });
 
   if (momentsErr) throw momentsErr;

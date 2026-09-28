@@ -274,16 +274,17 @@ function getMonthFromDate(dateStr) {
 
 // ── Year logic ───────────────────────────────────────────────────────
 const availableYears = computed(() => {
-  const years = new Set(props.items.map(i => i.year));
+  const years = new Set(props.items.filter(i => i.year !== 9999).map(i => i.year));
   [2027, 2026, 2025, 2024, 2023, 2022, 2021, 2020].forEach(y => years.add(y));
   return Array.from(years).sort((a, b) => b - a);
 });
 
-const initialYear = computed(() =>
-  props.items.length > 0
-    ? Math.max(...props.items.map(i => i.year))
-    : new Date().getFullYear()
-);
+const initialYear = computed(() => {
+  const validItems = props.items.filter(i => i.year !== 9999);
+  return validItems.length > 0
+    ? Math.max(...validItems.map(i => i.year))
+    : new Date().getFullYear();
+});
 
 const activeYear = ref(null);
 const isYearDropdownOpen = ref(false);
