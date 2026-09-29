@@ -732,7 +732,7 @@ async function handleMomentUpdated(data: any) {
     }
 
     // Build updated moments list: existing + new
-    const existingMoments = timelineItems.value.find(m => m.id === data.id)?.moments || [];
+    const existingMoments = data.existingMoments || (timelineItems.value.find(m => m.id === data.id)?.moments || []);
     const newPhotoItems = allNewPhotos.map(photo => ({
       title: '',
       description: '',
@@ -740,30 +740,38 @@ async function handleMomentUpdated(data: any) {
       accentColor: data.dotColor,
       localImageId: photo.localImageId
     }));
-    if (newPhotoItems.length > 0) {
-      updatedData.moments = [...existingMoments, ...newPhotoItems];
-    }
+    
+    // Always assign moments array because existingMoments might have been reordered/deleted/edited
+    updatedData.moments = [...existingMoments, ...newPhotoItems];
 
-    // Optimistic UI update
+    // Optimistic UI update — create new array reference so Vue watchers trigger
     const idx = timelineItems.value.findIndex(m => m.id === data.id);
     if (idx !== -1) {
-      timelineItems.value[idx] = { ...timelineItems.value[idx], ...updatedData };
-      if (!updatedData.moments) updatedData.moments = timelineItems.value[idx].moments;
+      const updated = { ...timelineItems.value[idx], ...updatedData };
+      const newArr = [...timelineItems.value];
+      newArr[idx] = updated;
+      timelineItems.value = newArr;
     }
 
     if (isCloud.value && activeCloudSession.value) {
-      const { updateMoment, addMomentPhoto } = await import('./data/authService');
+      const { updateMoment, addMomentPhoto, clearMomentPhotos } = await import('./data/authService');
       // Update metadata
       await updateMoment(activeCloudSession.value.id, data.id, updatedData);
-      // Upload ALL new photos to Supabase (so all devices see them)
-      for (const photo of allNewPhotos) {
+      
+      // Sync photos: clear existing in cloud and re-upload the entire updated array sequentially
+      // Sequential upload guarantees that Supabase's created_at reflects the exact sorted order
+      await clearMomentPhotos(data.id);
+      for (const photo of updatedData.moments) {
         await addMomentPhoto(data.id, {
-          title: '',
-          description: '',
+          title: photo.title || '',
+          description: photo.description || '',
           image: photo.image,
-          accentColor: data.dotColor
+          accentColor: photo.accentColor || data.dotColor
         });
+        // Small delay to ensure created_at timestamps are strictly sequential
+        await new Promise(r => setTimeout(r, 10));
       }
+      
       await fetchCloudTimeline(activeCloudSession.value.id);
     } else if (isLocal.value && activeLocalUsername.value) {
       const { updateLocalMoment } = await import('./data/localStore');

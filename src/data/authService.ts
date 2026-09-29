@@ -401,6 +401,18 @@ export async function addMomentPhoto(
 }
 
 /**
+ * Clears all photos for a specific moment (used before replacing them with an updated list).
+ */
+export async function clearMomentPhotos(momentId: string): Promise<void> {
+  const { error } = await supabase
+    .from('moment_items')
+    .delete()
+    .eq('moment_id', momentId);
+
+  if (error) throw error;
+}
+
+/**
  * Deletes a moment and all its associated photo items from Supabase.
  * moment_items will cascade-delete if FK is set, otherwise we delete them first.
  */

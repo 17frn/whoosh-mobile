@@ -1,134 +1,159 @@
 <template>
   <Transition name="modal-fade">
-    <div class="modal-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Tambah Momen">
+    <div class="modal-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Edit Momen">
       <div class="modal-box">
 
-        <!-- Handle bar -->
-        <div class="handle-bar"></div>
-
-        <div class="modal-header">
-          <h2>✏️ Edit Momen</h2>
-          <button class="close-btn" @click="$emit('close')" aria-label="Tutup">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+        <!-- STICKY HEADER -->
+        <div class="modal-sticky-header">
+          <div class="handle-bar"></div>
+          <div class="modal-header">
+            <div class="modal-header-title">
+              <div class="header-icon-badge">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </div>
+              <div class="header-text">
+                <span class="header-eyebrow">PERJALANAN</span>
+                <h2>Edit Momen</h2>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="modal-form">
+        <!-- SCROLLABLE BODY -->
+        <div class="modal-body">
+          <form @submit.prevent="handleSubmit" id="edit-moment-form" class="modal-form">
 
-          <!-- Judul -->
-          <div class="form-group">
-            <label for="mom-title">Judul Perjalanan <span class="required">*</span></label>
-            <input
-              id="mom-title"
-              v-model="form.title"
-              type="text"
-              placeholder="Mis: Liburan ke Bali 🏖️"
-              required
-              autocomplete="off"
-            />
-          </div>
-
-          <!-- Lokasi -->
-          <div class="form-group">
-            <label for="mom-location">Lokasi</label>
-            <input
-              id="mom-location"
-              v-model="form.location"
-              type="text"
-              placeholder="Mis: Bali, Indonesia"
-              autocomplete="off"
-            />
-          </div>
-
-          <!-- Tanggal & Tahun -->
-          <div class="form-row">
+            <!-- Judul -->
             <div class="form-group">
-              <label for="mom-date">Tanggal</label>
+              <label for="mom-title">Judul Perjalanan <span class="required">*</span></label>
               <input
-                id="mom-date"
-                v-model="form.date"
+                id="mom-title"
+                v-model="form.title"
                 type="text"
-                placeholder="Mis: 15 Januari 2025"
-              />
-            </div>
-            <div class="form-group">
-              <label for="mom-year">Tahun <span class="required">*</span></label>
-              <input
-                id="mom-year"
-                v-model.number="form.year"
-                type="number"
-                :min="2000"
-                :max="2100"
+                placeholder="Mis: Liburan ke Bali 🏖️"
                 required
+                autocomplete="off"
               />
             </div>
-          </div>
 
-          <!-- Warna Dot -->
-          <div class="form-group">
-            <label>Warna Penanda</label>
-            <div class="color-picker-row">
-              <button
-                v-for="color in dotColors"
-                :key="color"
-                type="button"
-                class="color-dot"
-                :class="{ selected: form.dotColor === color }"
-                :style="{ backgroundColor: color }"
-                @click="form.dotColor = color"
-                :aria-label="`Pilih warna ${color}`"
-              ></button>
+            <!-- Lokasi -->
+            <div class="form-group">
+              <label for="mom-location">Lokasi</label>
+              <input
+                id="mom-location"
+                v-model="form.location"
+                type="text"
+                placeholder="Mis: Bali, Indonesia"
+                autocomplete="off"
+              />
             </div>
-          </div>
 
-          <!-- Map Embed URL -->
-          <div class="form-group">
-            <label for="mom-map">Embed URL Peta <span class="label-hint">(opsional)</span></label>
-            <div class="map-embed-hint">
-              <i class="fa-solid fa-circle-info"></i>
-              Buka Google Maps → Bagikan → Sematkan peta → salin URL dari <code>src="..."</code>
+            <!-- Tanggal & Tahun -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="mom-date">Tanggal</label>
+                <input
+                  id="mom-date"
+                  v-model="form.date"
+                  type="text"
+                  placeholder="Mis: 15 Januari 2025"
+                />
+              </div>
+              <div class="form-group">
+                <label for="mom-year">Tahun <span class="required">*</span></label>
+                <input
+                  id="mom-year"
+                  v-model.number="form.year"
+                  type="number"
+                  :min="2000"
+                  :max="2100"
+                  required
+                />
+              </div>
             </div>
-            <textarea
-              id="mom-map"
-              v-model="form.mapEmbedUrl"
-              rows="2"
-              placeholder="https://www.google.com/maps/embed?pb=..."
-              autocomplete="off"
-              spellcheck="false"
-            ></textarea>
-          </div>
 
-          <!-- Upload Foto Tambahan -->
-          <div class="form-group">
-            <label>Tambah Foto <span class="label-hint">(opsional, bisa pilih banyak)</span></label>
-            <div class="file-upload-wrapper">
-              <input type="file" id="mom-photo-edit" accept="image/*" multiple @change="handleFileChange" class="file-input" />
-              <label for="mom-photo-edit" class="file-label">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                <span>{{ selectedFileCount > 0 ? `${selectedFileCount} foto dipilih` : 'Pilih Foto Baru...' }}</span>
-              </label>
+            <!-- Warna Dot -->
+            <div class="form-group">
+              <label>Warna Penanda</label>
+              <div class="color-picker-row">
+                <button
+                  v-for="color in dotColors"
+                  :key="color"
+                  type="button"
+                  class="color-dot"
+                  :class="{ selected: form.dotColor === color }"
+                  :style="{ backgroundColor: color }"
+                  @click="form.dotColor = color"
+                  :aria-label="`Pilih warna ${color}`"
+                ></button>
+              </div>
             </div>
-          </div>
 
-          <!-- Error -->
-          <div v-if="error" class="form-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
-          </div>
-
-          <!-- Actions -->
-          <div class="form-actions">
-            <button type="button" class="btn-cancel" @click="$emit('close')">Batal</button>
-            <div class="btn-wrapper">
-              <div class="btn-shadow"></div>
-              <button type="submit" class="btn-submit" :disabled="loading" id="btn-save-moment">
-                <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
-                <i v-else class="fa-solid fa-floppy-disk"></i>
-                {{ loading ? 'Menyimpan...' : 'Simpan Perubahan' }}
-              </button>
+            <!-- Map Embed URL -->
+            <div class="form-group">
+              <label for="mom-map">Embed URL Peta <span class="label-hint">(opsional)</span></label>
+              <div class="map-embed-hint">
+                <i class="fa-solid fa-circle-info"></i>
+                Buka Google Maps → Bagikan → Sematkan peta → salin URL dari <code>src="..."</code>
+              </div>
+              <textarea
+                id="mom-map"
+                v-model="form.mapEmbedUrl"
+                rows="2"
+                placeholder="https://www.google.com/maps/embed?pb=..."
+                autocomplete="off"
+                spellcheck="false"
+              ></textarea>
             </div>
+
+            <!-- FOTO TERSIMPAN -->
+            <div v-if="existingPhotos.length > 0" class="form-group">
+              <label>Foto Tersimpan <span class="label-hint">(Tahan & Geser untuk urutkan)</span></label>
+              <div class="existing-photos-grid scrollable-photos" ref="sortableGrid">
+                <div v-for="(photo, idx) in existingPhotos" :key="photo.localImageId || idx" class="photo-card" :data-id="idx">
+                  <div class="photo-img-wrap">
+                    <img :src="photo.image" alt="Thumbnail" />
+                    <button type="button" class="btn-delete-photo" @click="removeExistingPhoto(idx)" title="Hapus Foto">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <input type="text" v-model="photo.title" class="photo-caption-input" placeholder="Tulis caption..." autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Error -->
+            <div v-if="error" class="form-error">
+              <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+            </div>
+
+          </form>
+        </div>
+        <!-- /SCROLLABLE BODY -->
+
+        <!-- STICKY FOOTER -->
+        <div class="modal-sticky-footer">
+          <!-- Tombol Tambah Foto (kiri) -->
+          <div class="file-upload-wrapper">
+            <input type="file" id="mom-photo-edit" accept="image/*" multiple @change="handleFileChange" class="file-input-hidden" />
+            <label for="mom-photo-edit" class="neo-btn-upload">
+              <i class="fa-solid fa-images"></i>
+              <span>{{ selectedFileCount > 0 ? `+${selectedFileCount} Foto` : 'Tambah Foto' }}</span>
+            </label>
           </div>
 
-        </form>
+          <!-- Tombol Batal & Simpan (kanan) -->
+          <div class="footer-actions-right">
+            <button type="button" class="neo-btn-cancel" @click="$emit('close')">BATAL</button>
+            <button type="submit" form="edit-moment-form" class="neo-btn-save" :disabled="loading" id="btn-save-moment">
+              <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-floppy-disk"></i>
+              {{ loading ? 'SIMPAN...' : 'SIMPAN' }}
+            </button>
+          </div>
+        </div>
+        <!-- /STICKY FOOTER -->
+
       </div>
     </div>
   </Transition>
@@ -158,6 +183,7 @@ const emit = defineEmits<{
     longitude?: number;
     initialPhoto?: { image: string, localImageId: string };
     additionalPhotos?: Array<{ image: string, localImageId: string }>;
+    existingMoments?: any[];
   }];
 }>();
 
@@ -184,6 +210,11 @@ const form = ref({
 const loading = ref(false);
 const error = ref('');
 
+const existingPhotos = ref<any[]>([]);
+const sortableGrid = ref<HTMLElement | null>(null);
+
+let sortableInstance: any = null;
+
 const selectedFiles = ref<File[]>([]);
 const selectedFileCount = computed(() => selectedFiles.value.length);
 
@@ -197,7 +228,7 @@ function handleFileChange(event: Event) {
 }
 
 
-onMounted(() => {
+onMounted(async () => {
   if (props.moment) {
     form.value = {
       id: props.moment.id,
@@ -209,8 +240,30 @@ onMounted(() => {
       rtl: props.moment.rtl,
       mapEmbedUrl: props.moment.mapEmbedUrl || '',
     };
+    existingPhotos.value = props.moment.moments ? JSON.parse(JSON.stringify(props.moment.moments)) : [];
+  }
+
+  // Initialize SortableJS
+  if (existingPhotos.value.length > 0) {
+    const Sortable = (await import('sortablejs')).default;
+    setTimeout(() => {
+      if (sortableGrid.value) {
+        sortableInstance = new Sortable(sortableGrid.value, {
+          animation: 150,
+          ghostClass: 'sortable-ghost',
+          onEnd: (evt: any) => {
+            const item = existingPhotos.value.splice(evt.oldIndex, 1)[0];
+            existingPhotos.value.splice(evt.newIndex, 0, item);
+          }
+        });
+      }
+    }, 100);
   }
 });
+
+function removeExistingPhoto(idx: number) {
+  existingPhotos.value.splice(idx, 1);
+}
 
 async function handleSubmit() {
   error.value = '';
@@ -282,7 +335,8 @@ async function handleSubmit() {
       latitude,
       longitude,
       initialPhoto,
-      additionalPhotos
+      additionalPhotos,
+      existingMoments: existingPhotos.value
     });
     
   } catch (err: any) {
@@ -315,52 +369,125 @@ async function handleSubmit() {
   width: 100%;
   max-width: 540px;
   box-shadow: 0 -5px 0 #101010;
-  padding: 12px 24px 40px;
   max-height: 92vh;
-  overflow-y: auto;
-  scrollbar-width: none;
+  /* 3-layer flex for sticky header + scrollable body + sticky footer */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* CRITICAL: prevents the box itself from scrolling */
 }
 
-.modal-box::-webkit-scrollbar { display: none; }
+/* ── STICKY HEADER ── */
+.modal-sticky-header {
+  flex-shrink: 0;
+  padding: 12px 24px 0;
+  background: #fafafa;
+  border-bottom: 2px solid #101010;
+}
 
 .handle-bar {
   width: 40px;
   height: 4px;
   background: #d1d5db;
   border-radius: 99px;
-  margin: 0 auto 18px;
+  margin: 0 auto 14px;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 22px;
+  padding-bottom: 16px;
+}
+
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-icon-badge {
+  width: 48px;
+  height: 48px;
+  background: #fef08a;
+  border: 2.5px solid #101010;
+  box-shadow: 3px 3px 0 #101010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  color: #101010;
+  flex-shrink: 0;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header-eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #6f6bd8;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
 }
 
 .modal-header h2 {
-  font-family: 'Outfit', 'Space Grotesk', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-size: 1.35rem;
   font-weight: 900;
   color: #101010;
   margin: 0;
+  line-height: 1.1;
 }
 
-.close-btn {
-  background: none;
-  border: 2px solid #e5e7eb;
+.neo-close-btn {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border: 2px solid #101010;
+  border-radius: 0;
+  background: #fef2f2;
+  color: #f43f5e;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.95rem;
-  color: #6b7280;
-  transition: all 0.15s;
+  box-shadow: 2px 2px 0 #101010;
+  transition: all 0.1s ease;
 }
-.close-btn:hover { background: #fef2f2; border-color: #f43f5e; color: #f43f5e; }
+.neo-close-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #101010;
+}
+
+/* ── SCROLLABLE BODY ── */
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  scrollbar-width: none; /* Firefox */
+}
+.modal-body::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+/* ── STICKY FOOTER ── */
+.modal-sticky-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-top: 3px solid #101010;
+  background: #f0f0f0;
+  gap: 12px;
+}
+
+.footer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 .modal-form {
   display: flex;
@@ -498,12 +625,80 @@ input:focus {
   gap: 8px;
 }
 
-.form-actions {
-  display: flex;
+/* ══ NEO-BRUTALIST BUTTONS ══ */
+
+/* Tambah Foto */
+.file-input-hidden { display: none; }
+
+.neo-btn-upload {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 8px;
+  background: #fef08a;
+  color: #101010;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 2px solid #101010;
+  padding: 10px 16px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #101010;
+  transition: all 0.08s ease;
+}
+.neo-btn-upload:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 #101010;
+}
+
+/* Batal */
+.neo-btn-cancel {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: #ffffff;
+  color: #101010;
+  border: 2px solid #101010;
+  padding: 10px 18px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #101010;
+  transition: all 0.08s ease;
+}
+.neo-btn-cancel:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 #101010;
+}
+
+/* Simpan */
+.neo-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #101010;
+  color: #fafafa;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 2px solid #101010;
+  padding: 10px 20px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #6f6bd8;
+  transition: all 0.08s ease;
+}
+.neo-btn-save:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 #6f6bd8;
+}
+.neo-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 3px 3px 0 #6f6bd8;
 }
 
 .btn-cancel {
@@ -574,4 +769,118 @@ input:focus {
   from { transform: translateY(0); }
   to   { transform: translateY(100%); }
 }
+
+/* ── Photo Grid (Scrollable) ── */
+.scrollable-photos {
+  max-height: 40vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  background: #f3f4f6;
+  border: 2px solid #101010;
+  border-radius: 4px;
+}
+
+/* Custom Scrollbar for photos */
+.scrollable-photos::-webkit-scrollbar { width: 8px; }
+.scrollable-photos::-webkit-scrollbar-track { background: #e5e7eb; border-left: 2px solid #101010; }
+.scrollable-photos::-webkit-scrollbar-thumb { background: #6f6bd8; border: 2px solid #101010; border-right: none; }
+
+.existing-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.photo-card {
+  position: relative;
+  background: #ffffff;
+  border: 2px solid #101010;
+  box-shadow: 2px 2px 0 #101010;
+  display: flex;
+  flex-direction: column;
+  cursor: grab;
+}
+.photo-card:active {
+  cursor: grabbing;
+}
+
+.photo-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-bottom: 2px solid #101010;
+  overflow: hidden;
+}
+
+.photo-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.btn-delete-photo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f87171;
+  color: #fff;
+  border: 2px solid #101010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  z-index: 10;
+}
+.btn-delete-photo:hover { background: #ef4444; }
+
+.photo-caption-input {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 0.75rem;
+  padding: 6px 8px;
+  width: 100%;
+  background: #f8fafc;
+  margin: 0;
+}
+.photo-caption-input:focus {
+  background: #ffffff;
+  outline: none;
+}
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+/* ── FILE INPUT BRUTALIST ── */
+.file-input-hidden {
+  display: none;
+}
+
+.btn-neo-upload {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 2px solid #101010;
+  padding: 11px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  box-shadow: 3px 3px 0 #101010;
+}
+.btn-neo-upload:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #101010;
+}
+
 </style>

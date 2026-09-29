@@ -157,40 +157,41 @@
           <!-- Fixed top: header + map + edit button -->
           <div class="detail-fixed-top">
             <div class="detail-header">
-              <button class="back-link-btn" @click="closeDetail">&larr; Kembali</button>
-              
-              <div class="detail-header-actions">
-                <div class="action-btn-wrap">
-                  <button class="btn-detail-action" @click="isGalleryLocked = !isGalleryLocked" aria-label="Toggle Kunci" title="Kunci/Buka Posisi Foto">
-                    <i class="fa-solid" :class="isGalleryLocked ? 'fa-lock' : 'fa-lock-open'"></i>
-                  </button>
-                  <span class="action-label">{{ isGalleryLocked ? 'Terkunci' : 'Terbuka' }}</span>
-                </div>
-                <div class="action-btn-wrap">
-                  <button class="btn-detail-action" @click="$emit('edit-moment', activeDetailItem)" aria-label="Edit Momen" title="Edit Momen">
-                    <i class="fa-solid fa-pencil"></i>
-                  </button>
-                  <span class="action-label">Edit</span>
-                </div>
-              </div>
               <h2 class="detail-title">{{ activeDetailItem.title }}</h2>
-              <p class="detail-subtitle">
-                <span v-if="activeDetailItem.location">
-                  <i class="fa-solid fa-location-dot"></i> {{ activeDetailItem.location }}
-                </span>
-                <span v-if="activeDetailItem.date">
-                  &nbsp;•&nbsp;<i class="fa-regular fa-calendar"></i> {{ activeDetailItem.date }}
-                </span>
-              </p>
+              <div class="detail-header-actions">
+                <button class="neo-btn edit-btn" @click="$emit('edit-moment', activeDetailItem)" aria-label="Edit Momen">
+                  EDIT
+                </button>
+                <button class="neo-btn close-btn" @click="closeDetail" aria-label="Tutup">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Pill container for subtitle/map -->
+            <div class="detail-subtitle-row">
+              <button 
+                v-if="activeDetailItem.location" 
+                class="neo-pill map-pill" 
+                :class="{ 'has-map': isValidMapUrl(activeDetailItem.mapEmbedUrl) }"
+                @click="isValidMapUrl(activeDetailItem.mapEmbedUrl) && (isMapExpanded = !isMapExpanded)"
+              >
+                <i class="fa-solid fa-location-dot"></i> {{ activeDetailItem.location }}
+                <i v-if="isValidMapUrl(activeDetailItem.mapEmbedUrl)" class="fa-solid" :class="isMapExpanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              </button>
+              
+              <div v-if="activeDetailItem.date" class="neo-pill date-pill">
+                <i class="fa-regular fa-calendar"></i> {{ activeDetailItem.date }}
+              </div>
             </div>
 
-            <!-- Map embed -->
-            <div v-if="isValidMapUrl(activeDetailItem.mapEmbedUrl)" class="detail-map-container">
+            <!-- Map embed (Conditional) -->
+            <div v-if="isMapExpanded && isValidMapUrl(activeDetailItem.mapEmbedUrl)" class="detail-map-container">
               <iframe
                 :src="activeDetailItem.mapEmbedUrl"
                 width="100%"
-                height="200"
-                style="border:0; border-radius: 12px;"
+                height="160"
+                class="neo-iframe"
                 allowfullscreen="false"
                 loading="lazy"
                 referrerpolicy="no-referrer-when-downgrade"
@@ -201,14 +202,11 @@
 
           <!-- Scrollable gallery section -->
           <div class="detail-gallery-scroll">
-            <div class="gallery-grid" :style="`direction: ${activeDetailItem.rtl ? 'rtl' : 'ltr'}`">
+            <div class="gallery-grid-neo" :style="`direction: ${activeDetailItem.rtl ? 'rtl' : 'ltr'}`">
               <div
-                v-for="(momen, idx) in activeDetailItem.moments"
+                v-for="(momen, idx) in activeDetailItem.moments?.slice(0, 9)"
                 :key="idx"
                 class="gallery-card-wrap"
-                :class="{ 'is-dragging': draggingPhotoIdx === idx }"
-                @touchstart.passive="onPhotoTouchStart(idx, $event)"
-                @touchend="onPhotoTouchEnd(idx, $event)"
               >
                 <TimelineCard
                   :image="momen.image"
@@ -216,7 +214,6 @@
                   :description="momen.description"
                   :accentColor="momen.accentColor"
                 />
-                <div class="drag-hint"><i class="fa-solid fa-arrows-up-down-left-right"></i></div>
               </div>
             </div>
             <div v-if="!activeDetailItem.moments || activeDetailItem.moments.length === 0" class="gallery-empty">
@@ -301,8 +298,13 @@ function selectYear(y) {
   isYearDropdownOpen.value = false;
 }
 const transitionName = ref('slide-left');
-const activeDetailItem = ref(null);
-const isGalleryLocked = ref(true); // Default to locked to prevent accidental swipe
+const activeDetailItemId = ref(null);
+// Computed: always reads the freshest data from props.items — no sync needed
+const activeDetailItem = computed(() => {
+  if (!activeDetailItemId.value) return null;
+  return props.items.find(i => i.id === activeDetailItemId.value) || null;
+});
+const isMapExpanded = ref(false);
 let touchStartX = 0;
 
 watch(initialYear, (val) => {
@@ -363,60 +365,26 @@ const onTouchEnd = e => {
 const openGlobalMap = () => window.dispatchEvent(new Event('open-global-map'));
 
 const openDetail = item => {
-  activeDetailItem.value = item;
+  activeDetailItemId.value = item.id;
   document.documentElement.classList.add('modal-open');
   emit('detail-modal-toggled', true);
 };
 const closeDetail = () => {
-  activeDetailItem.value = null;
+  activeDetailItemId.value = null;
   document.documentElement.classList.remove('modal-open');
   emit('detail-modal-toggled', false);
 };
 
-// ── Swipe-to-reorder photos ──────────────────────────────────────────
-const draggingPhotoIdx = ref(null);
-let swipeTouchStartX = 0;
-let swipeTouchStartY = 0;
-
-function onPhotoTouchStart(idx, e) {
-  if (isGalleryLocked.value) return;
-  draggingPhotoIdx.value = idx;
-  swipeTouchStartX = e.touches[0].clientX;
-  swipeTouchStartY = e.touches[0].clientY;
-}
-
-function onPhotoTouchEnd(idx, e) {
-  if (isGalleryLocked.value || draggingPhotoIdx.value !== idx) return;
-  
-  const dx = e.changedTouches[0].clientX - swipeTouchStartX;
-  const dy = e.changedTouches[0].clientY - swipeTouchStartY;
-  const adx = Math.abs(dx), ady = Math.abs(dy);
-  if (adx < 10 && ady < 10) { draggingPhotoIdx.value = null; return; }
-
-  const moments = [...(activeDetailItem.value?.moments || [])];
-  if (moments.length < 2) { draggingPhotoIdx.value = null; return; }
-
-  let newIdx = idx;
-  if (adx > ady) {
-    // horizontal swipe — left moves backward, right moves forward
-    newIdx = dx < 0 ? idx - 1 : idx + 1;
-  } else {
-    // vertical swipe — up moves backward, down moves forward
-    newIdx = dy < 0 ? idx - 1 : idx + 1;
+// When a moment is deleted externally, close detail if it was open
+watch(() => props.items, (newItems) => {
+  if (activeDetailItemId.value) {
+    const stillExists = newItems.find(i => i.id === activeDetailItemId.value);
+    if (!stillExists) closeDetail();
   }
+});
 
-  newIdx = Math.max(0, Math.min(moments.length - 1, newIdx));
-  if (newIdx === idx) { draggingPhotoIdx.value = null; return; }
-
-  // Swap
-  [moments[idx], moments[newIdx]] = [moments[newIdx], moments[idx]];
-  activeDetailItem.value = { ...activeDetailItem.value, moments };
-
-  // Persist reorder via parent
-  emit('reorder-photos', { momentId: activeDetailItem.value.id, moments });
-
-  draggingPhotoIdx.value = null;
-}
+// ── Photo Grid Logic (Removed swipe-to-reorder) ───────────────────────
+// Reordering is now exclusively handled in the Edit Modal.
 
 // ── Color Generation Helper ──────────────────────────────────────────
 function getCardBackground(color) {
@@ -444,7 +412,6 @@ function getCardBackground(color) {
     }
   }
   
-  // Parse hex to rgba with very soft (7%) opacity
   if (baseColor.startsWith('#')) {
     const hex = baseColor.replace('#', '').trim();
     let r = 0, g = 0, b = 0;
@@ -1031,101 +998,114 @@ onMounted(() => {
 
 .detail-header-actions {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -10px;
+  right: -10px;
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
-.action-btn-wrap {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-}
-
-.action-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #6b7280;
-  font-family: 'Inter', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.btn-detail-action {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #fef08a; /* solid yellow background for both */
-  color: #854d0e;
-  border: 1.5px solid #101010;
+.neo-btn {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 0.8rem;
+  border: 2px solid #101010;
+  box-shadow: 2px 2px 0 #101010;
+  cursor: pointer;
+  transition: all 0.1s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
 }
-.btn-detail-action:hover {
-  background: #fde047;
-  opacity: 0.9;
-}
-.btn-detail-action:active {
-  opacity: 0.7;
+.neo-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #101010;
 }
 
-.back-link-btn {
-  background: none;
-  border: none;
-  color: #6f6bd8;
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 0.9rem;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 12px;
-  display: inline-block;
+.edit-btn {
+  background: #fef08a; /* yellow */
+  color: #101010;
+  padding: 6px 14px;
+  border-radius: 6px;
 }
-.back-link-btn:hover { text-decoration: underline; }
+.close-btn {
+  background: #f43f5e; /* red */
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 1rem;
+}
 
 .detail-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   color: #101010;
-  margin: 0 0 6px;
+  margin: 0 0 12px;
   font-weight: 800;
+  padding-right: 80px; /* space for absolute buttons */
 }
 
-.detail-subtitle {
+.detail-subtitle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.neo-pill {
   font-family: 'Inter', sans-serif;
-  font-size: 0.82rem;
-  color: #9ca3af;
-  margin: 0;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 2px solid #101010;
+  padding: 6px 12px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  flex-wrap: wrap;
+  gap: 6px;
+  background: #ffffff;
+  color: #101010;
 }
-.detail-subtitle i { color: #6f6bd8; }
+
+.map-pill {
+  background: #e0e7ff; /* soft indigo */
+  cursor: default;
+}
+.map-pill.has-map {
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #101010;
+  transition: all 0.1s ease;
+}
+.map-pill.has-map:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #101010;
+}
+.map-chevron {
+  transition: transform 0.2s ease;
+}
+
+.date-pill {
+  background: #f3f4f6;
+}
 
 .detail-map-container {
   margin-bottom: 20px;
-  border-radius: 8px;
-  overflow: hidden;
+}
+.neo-iframe {
+  border: 2px solid #101010 !important;
+  box-shadow: 4px 4px 0 #101010;
+  border-radius: 12px;
 }
 
-.gallery-grid {
+.gallery-grid-neo {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
 @media (min-width: 600px) {
-  .gallery-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
+  .gallery-grid-neo {
+    grid-template-columns: repeat(3, 1fr); /* 3x3 layout max 9 photos */
+    gap: 20px;
   }
 }
 
