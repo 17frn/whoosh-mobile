@@ -448,12 +448,15 @@ async function syncLocalTimelineWithCloud(username: string, shareToken: string, 
     for (const localItem of localItems) {
       // Try to match by ID first (reliable after first sync)
       const matchById = cloudById.get(localItem.id);
-      // Fallback: match by title+date signature
-      const matchBySig = !matchById ? cloudBySig.get(getSig(localItem)) : null;
+      const isUUID = localItem.id && !localItem.id.toString().startsWith('local_');
+      
+      // Fallback: match by title+date signature ONLY if it's a local_ ID.
+      // If it's a UUID and missing from cloud, it means it was deleted explicitly.
+      const matchBySig = (!matchById && !isUUID) ? cloudBySig.get(getSig(localItem)) : null;
       const cloudMatch = matchById || matchBySig;
 
       if (!cloudMatch) {
-        if (localItem.id && !localItem.id.toString().startsWith('local_')) {
+        if (isUUID) {
           // This local item has a cloud UUID but is missing from the cloud.
           // This means it was deleted on another device. We should delete it locally!
           const { deleteLocalMoment } = await import('./data/localStore');
@@ -1420,13 +1423,19 @@ body {
 
 /* ── Layout with bottom nav ──────────────────────────────────── */
 .timeline-active-view {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
   padding-top: 0;
-  padding-bottom: 64px; /* space for fixed BottomNav */
-  min-height: 100vh;
 }
 
 .tab-content {
   width: 100%;
+  flex: 1;
+  overflow: hidden; /* Each view manages its own scroll internally */
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Timeline placeholder ────────────────────────────────────── */
@@ -1472,10 +1481,11 @@ body {
   background: #ffffff;
   border-bottom: 2.5px solid #101010;
   box-shadow: 0 3px 0 #101010;
-  margin-bottom: 20px;
   overflow: hidden;
   margin-left: -40px;
   margin-right: -40px;
+  margin-bottom: 16px; /* Gap between token section and Galeri section */
+  flex-shrink: 0; /* Never shrink; always reserve its full height */
 }
 
 /* ── Section 1: Main Header ─────────────── */

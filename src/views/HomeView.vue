@@ -272,6 +272,13 @@ function getMonthFromDate(dateStr) {
   return null;
 }
 
+function getDayFromDate(dateStr) {
+  if (!dateStr) return 0;
+  // Look for 1 or 2 digits standing alone or at the start
+  const m = dateStr.match(/(?:^|\b)(\d{1,2})\b/);
+  return m ? parseInt(m[1]) : 0;
+}
+
 // ── Year logic ───────────────────────────────────────────────────────
 const availableYears = computed(() => {
   const years = new Set(props.items.filter(i => i.year !== 9999).map(i => i.year));
@@ -319,13 +326,19 @@ const monthGroups = computed(() => {
   const sorted = Array.from(map.keys()).sort((a, b) => {
     if (a === 0) return 1;
     if (b === 0) return -1;
-    return a - b;
+    return a - b; // Ascending months
   });
-  return sorted.map(month => ({
-    month,
-    label: month > 0 ? BULAN_ID[month - 1] : 'Tanpa Tanggal',
-    items: map.get(month),
-  }));
+  return sorted.map(month => {
+    const items = map.get(month);
+    // Sort items by day ascending (1 -> 31)
+    items.sort((a, b) => getDayFromDate(a.date) - getDayFromDate(b.date));
+    
+    return {
+      month,
+      label: month > 0 ? BULAN_ID[month - 1] : 'Tanpa Tanggal',
+      items,
+    };
+  });
 });
 
 // ── Year slide direction ─────────────────────────────────────────────
@@ -460,20 +473,22 @@ onMounted(() => {
 <style scoped>
 .timeline-view-wrapper {
   width: 100%;
-  padding-bottom: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Page Header ────────────────────────────────────── */
 .page-header {
   padding: 12px 20px 8px;
-  background: transparent;
+  background: #f8fafc;
   margin: 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  flex-shrink: 0;
+  z-index: 20;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .header-top {
@@ -621,12 +636,14 @@ onMounted(() => {
 
 /* ── Timeline container ──────────────────────────────────────────── */
 .timeline-content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   position: relative;
-  min-height: 300px;
 }
 
 .timeline-container {
-  padding: 20px 16px 8px;
+  padding: 0 16px 80px;
   position: relative;
 }
 
@@ -654,7 +671,18 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
-  padding-left: 36px; /* Offset to align month name with card text, keeping line area clear */
+  padding-top: 8px;
+  padding-bottom: 8px;
+  /* Sticky relative to .timeline-content-wrapper (the new scroll container) */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+  /* Bleed background to edges */
+  margin-left: -16px;
+  margin-right: -16px;
+  padding-left: 52px; /* 36px original + 16px compensation */
+  padding-right: 16px;
 }
 
 .month-label-wrap {
