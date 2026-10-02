@@ -93,10 +93,9 @@ defineEmits<{ 'update:modelValue': [tab: 'home' | 'timeline' | 'settings'] }>();
   height: 86px;
   border-radius: 50%;
   background: transparent; /* The hole */
-  /* This huge shadow acts as the solid white background for the rest of the navbar */
-  box-shadow: 0 0 0 2000px #ffffff; 
-  /* Shift it up so the bottom half cuts into the navbar */
-  transform: translateY(-43px); 
+  /* This huge shadow acts as the solid background for the rest of the navbar */
+  box-shadow: 0 0 0 2000px var(--theme-nav-bg, #ffffff);
+  transform: translateY(-43px);
 }
 
 /* The Elevated Circle that sits inside the cutout */
@@ -115,11 +114,11 @@ defineEmits<{ 'update:modelValue': [tab: 'home' | 'timeline' | 'settings'] }>();
 .indicator-circle {
   width: 68px;
   height: 68px;
-  background: #ffffff;
+  background: var(--theme-nav-indicator, #ffffff);
   border-radius: 50%;
-  /* Elevate it so its center perfectly matches the cutout center */
   transform: translateY(-50%);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: background 0.3s ease;
 }
 
 /* Nav Buttons */
@@ -129,7 +128,7 @@ defineEmits<{ 'update:modelValue': [tab: 'home' | 'timeline' | 'settings'] }>();
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #b0bac9;
+  color: var(--theme-icon-primary, #b0bac9);
   position: relative;
   z-index: 2;
   outline: none;
@@ -168,7 +167,7 @@ defineEmits<{ 'update:modelValue': [tab: 'home' | 'timeline' | 'settings'] }>();
   /* Move icon up to be exactly centered in the elevated circle (at y=0 relative to navbar) */
   /* 14px top + roughly 14px (half height of 1.8rem icon) = center at 28px. So -28px moves it to 0 */
   transform: translate(-50%, -28px);
-  color: #6b9bd6;
+  color: var(--theme-icon-secondary, #6b9bd6);
 }
 
 .nav-item.active .nav-label {

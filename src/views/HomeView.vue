@@ -1,58 +1,68 @@
 <template>
-  <div
-    class="timeline-view-wrapper"
-    @touchstart="onTouchStart"
-    @touchend="onTouchEnd"
-  >
-    <!-- Page Header -->
-    <div class="page-header">
-      <div class="header-top">
-        <h1 class="page-title">Galeri</h1>
-      </div>
+  <div class="timeline-view-wrapper">
+    <!-- Hero Header Section (optional banner/branding bisa di sini) -->
 
-      <div class="header-actions-container">
-        <!-- Custom Year Selector (Neo Brutalism Pastel) -->
-        <div class="year-selector-wrapper">
-          <button class="year-dropdown-btn" @click="isYearDropdownOpen = !isYearDropdownOpen" aria-label="Pilih Tahun">
-            {{ activeYear || 'Tahun' }}
-            <i class="fa-solid fa-chevron-down dropdown-icon"></i>
-          </button>
-          
-          <div v-if="isYearDropdownOpen" class="year-dropdown-overlay" @click="isYearDropdownOpen = false"></div>
-          
-          <Transition name="fade">
-            <div v-if="isYearDropdownOpen" class="year-dropdown-menu">
-              <button 
-                v-for="y in availableYears" 
-                :key="y"
-                class="year-dropdown-item"
-                :class="{ 'is-active': y === activeYear }"
-                @click="selectYear(y)"
-              >
-                {{ y }}
-                <div class="radio-circle"><div v-if="y === activeYear" class="radio-inner"></div></div>
-              </button>
-            </div>
-          </Transition>
-        </div>
-
-        <!-- Global Map Trigger -->
-        <button id="global-map-trigger" class="btn-global-map" @click="openGlobalMap" title="Lihat Jejak Momen">
-          <i class="fa-solid fa-map-location-dot"></i>
-        </button>
-      </div>
-    </div>
+    <!-- Recent Highlights Section -->
+    <RecentHighlights
+      :items="items"
+      :max-items="5"
+      @open-detail="openDetail"
+    />
 
     <!-- Timeline Content with slide transition -->
     <div class="timeline-content-wrapper">
-      <Transition :name="transitionName" mode="out-in">
-        <div :key="activeYear" class="timeline-container">
+      <!-- Timeline Section Header (Galeri + Year Selector + Map) - STICKY, NO SWIPE -->
+      <div class="timeline-section-header">
+        <div class="timeline-header-left">
+          <h1 class="timeline-section-title">Galeri</h1>
+        </div>
 
-          <!-- Global Vertical Dotted Line -->
-          <div v-if="filteredItems.length > 0" class="timeline-main-line"></div>
+        <div class="timeline-header-actions">
+          <!-- Custom Year Selector -->
+          <div class="year-selector-wrapper">
+            <button class="year-dropdown-btn" @click="isYearDropdownOpen = !isYearDropdownOpen" aria-label="Pilih Tahun">
+              {{ activeYear || 'Tahun' }}
+              <i class="fa-solid fa-chevron-down dropdown-icon"></i>
+            </button>
 
-          <!-- Month groups -->
-          <template v-if="filteredItems.length > 0">
+            <div v-if="isYearDropdownOpen" class="year-dropdown-overlay" @click="isYearDropdownOpen = false"></div>
+
+            <Transition name="fade">
+              <div v-if="isYearDropdownOpen" class="year-dropdown-menu">
+                <button
+                  v-for="y in availableYears"
+                  :key="y"
+                  class="year-dropdown-item"
+                  :class="{ 'is-active': y === activeYear }"
+                  @click="selectYear(y)"
+                >
+                  {{ y }}
+                  <div class="radio-circle"><div v-if="y === activeYear" class="radio-inner"></div></div>
+                </button>
+              </div>
+            </Transition>
+          </div>
+
+          <!-- Global Map Trigger -->
+          <button id="global-map-trigger" class="btn-global-map" @click="openGlobalMap" title="Lihat Jejak Momen">
+            <i class="fa-solid fa-map-location-dot"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Swipeable Content Area - ONLY THIS SWIPES -->
+      <div
+        class="timeline-swipeable-area"
+        @touchstart="onTouchStart"
+        @touchend="onTouchEnd"
+      >
+        <Transition :name="transitionName" mode="out-in">
+          <div :key="activeYear" class="timeline-container">
+            <!-- Global Vertical Dotted Line -->
+            <div v-if="filteredItems.length > 0" class="timeline-main-line"></div>
+
+            <!-- Month groups -->
+            <template v-if="filteredItems.length > 0">
             <div v-for="group in monthGroups" :key="group.month" class="month-group">
 
               <!-- Month header -->
@@ -79,7 +89,6 @@
                   <!-- Actual Trip Card -->
                   <div
                     class="trip-card"
-                    :style="{ backgroundColor: getCardBackground(item.dotColor) }"
                     @click="openDetail(item)"
                     role="button"
                     tabindex="0"
@@ -134,18 +143,18 @@
             </div>
           </template>
 
-          <!-- Empty state -->
-          <div v-else class="empty-state">
-            <div class="empty-icon"><i class="fa-regular fa-compass"></i></div>
-            <h3>Belum ada perjalanan<br>di tahun {{ activeYear }}</h3>
-            <p>Mungkin masih dalam perencanaan :D</p>
-            <button class="btn-add-empty" @click="$emit('add-moment')" id="btn-add-first-moment">
-              <i class="fa-solid fa-plus"></i> Tambah Momen Pertama
-            </button>
+            <!-- Empty state -->
+            <div v-else class="empty-state">
+              <div class="empty-icon"><i class="fa-regular fa-compass"></i></div>
+              <h3>Belum ada perjalanan<br>di tahun {{ activeYear }}</h3>
+              <p>Mungkin masih dalam perencanaan :D</p>
+              <button class="btn-add-empty" @click="$emit('add-moment')" id="btn-add-first-moment">
+                <i class="fa-solid fa-plus"></i> Tambah Momen Pertama
+              </button>
+            </div>
           </div>
-
-        </div>
-      </Transition>
+        </Transition>
+      </div>
     </div>
 
 
@@ -167,19 +176,19 @@
                 </button>
               </div>
             </div>
-            
+
             <!-- Pill container for subtitle/map -->
             <div class="detail-subtitle-row">
-              <button 
-                v-if="activeDetailItem.location" 
-                class="neo-pill map-pill" 
+              <button
+                v-if="activeDetailItem.location"
+                class="neo-pill map-pill"
                 :class="{ 'has-map': isValidMapUrl(activeDetailItem.mapEmbedUrl) }"
                 @click="isValidMapUrl(activeDetailItem.mapEmbedUrl) && (isMapExpanded = !isMapExpanded)"
               >
                 <i class="fa-solid fa-location-dot"></i> {{ activeDetailItem.location }}
                 <i v-if="isValidMapUrl(activeDetailItem.mapEmbedUrl)" class="fa-solid" :class="isMapExpanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
               </button>
-              
+
               <div v-if="activeDetailItem.date" class="neo-pill date-pill">
                 <i class="fa-regular fa-calendar"></i> {{ activeDetailItem.date }}
               </div>
@@ -230,8 +239,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import TimelineCard from '../components/feed/TimelineCard.vue';
+import RecentHighlights from '../components/shared/RecentHighlights.vue';
 
 const props = defineProps({
   items: { type: Array, required: true }
@@ -334,7 +344,7 @@ const monthGroups = computed(() => {
     const items = map.get(month);
     // Sort items by day ascending (1 -> 31)
     items.sort((a, b) => getDayFromDate(a.date) - getDayFromDate(b.date));
-    
+
     return {
       month,
       label: month > 0 ? BULAN_ID[month - 1] : 'Tanpa Tanggal',
@@ -386,49 +396,6 @@ watch(() => props.items, (newItems) => {
 // ── Photo Grid Logic (Removed swipe-to-reorder) ───────────────────────
 // Reordering is now exclusively handled in the Edit Modal.
 
-// ── Color Generation Helper ──────────────────────────────────────────
-function getCardBackground(color) {
-  if (!color) return '#ffffff';
-  let baseColor = color;
-  if (color.startsWith('var(')) {
-    const varName = color.replace('var(', '').replace(')', '').trim();
-    // Resolve CSS variables dynamically from document or fallback to standard palette
-    const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
-    const resolved = rootStyles ? rootStyles.getPropertyValue(varName).trim() : '';
-    if (resolved) {
-      baseColor = resolved;
-    } else {
-      const accents = {
-        '--accent-1': '#6366f1',
-        '--accent-2': '#14b8a6',
-        '--accent-3': '#0ea5e9',
-        '--accent-4': '#f43f5e',
-        '--accent-5': '#8b5cf6',
-        '--accent-6': '#f59e0b',
-        '--accent-7': '#fd7979',
-        '--accent-8': '#3f9aae'
-      };
-      baseColor = accents[varName] || '#6366f1';
-    }
-  }
-  
-  if (baseColor.startsWith('#')) {
-    const hex = baseColor.replace('#', '').trim();
-    let r = 0, g = 0, b = 0;
-    if (hex.length === 3) {
-      r = parseInt(hex[0] + hex[0], 16);
-      g = parseInt(hex[1] + hex[1], 16);
-      b = parseInt(hex[2] + hex[2], 16);
-    } else if (hex.length === 6) {
-      r = parseInt(hex.substring(0, 2), 16);
-      g = parseInt(hex.substring(2, 4), 16);
-      b = parseInt(hex.substring(4, 6), 16);
-    }
-    return `rgba(${r}, ${g}, ${b}, 0.07)`;
-  }
-  return baseColor;
-}
-
 onMounted(() => {
   window.addEventListener('open-timeline-detail', e => {
     const item = props.items.find(i => i.id === e.detail);
@@ -443,35 +410,48 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox - hide scrollbar */
+  -ms-overflow-style: none; /* IE/Edge - hide scrollbar */
 }
 
-/* ── Page Header ────────────────────────────────────── */
-.page-header {
-  padding: 12px 20px 8px;
-  background: #f8fafc;
-  margin: 0;
-  flex-shrink: 0;
-  z-index: 20;
+/* Hide scrollbar for Chrome/Safari */
+.timeline-view-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Timeline Section Header ─────────────────────────────────────── */
+.timeline-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 16px 12px;
+  margin-bottom: 8px;
+  background: var(--theme-header-bg);
+  border-bottom: 2px solid var(--theme-border, #101010);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  transition: background 0.3s ease;
 }
 
-.header-top {
-  margin: 0;
+.timeline-header-left {
+  flex: 1;
 }
 
-.page-title {
+.timeline-section-title {
   font-family: 'Outfit', 'Space Grotesk', sans-serif;
   font-size: 1.6rem;
   font-weight: 900;
-  color: #101010;
+  color: var(--theme-header-text, #101010);
   margin: 0;
   line-height: 1.1;
+  transition: color 0.3s ease;
 }
 
-.header-actions-container {
+.timeline-header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -487,33 +467,36 @@ onMounted(() => {
 
 .year-dropdown-btn {
   appearance: none;
-  background: #ffffff;
-  color: #101010;
+  background: var(--theme-surface, #ffffff);
+  color: var(--theme-text, #101010);
   font-family: 'Inter', sans-serif;
   font-weight: 700;
   font-size: 0.8rem;
   padding: 6px 30px 6px 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--theme-border-light, #e5e7eb);
   border-radius: 8px;
   cursor: pointer;
   box-shadow: none;
   outline: none;
   transition: all 0.15s;
+  position: relative;
 }
 
 .year-dropdown-btn:hover {
-  background: #f9fafb;
+  background: var(--theme-dropdown-hover, #f9fafb);
 }
 
 .year-dropdown-btn:active {
-  background: #f3f4f6;
+  background: var(--theme-dropdown-hover, #f3f4f6);
 }
 
 .dropdown-icon {
   position: absolute;
   right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   pointer-events: none;
-  color: #101010;
+  color: var(--theme-text, #101010);
   font-size: 0.75rem;
 }
 
@@ -528,7 +511,7 @@ onMounted(() => {
   top: calc(100% + 8px);
   right: 0;
   width: 140px;
-  background: #ffffff;
+  background: var(--theme-dropdown-bg, #ffffff);
   border: 2px solid #101010;
   box-shadow: 4px 4px 0 #ffe4e6, 4px 4px 0 2px #101010;
   z-index: 100;
@@ -558,7 +541,7 @@ onMounted(() => {
 }
 
 .year-dropdown-item:hover, .year-dropdown-item.is-active {
-  background: #ffe4e6;
+  background: var(--theme-dropdown-hover, #ffe4e6);
 }
 
 .radio-circle {
@@ -587,26 +570,39 @@ onMounted(() => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #ffffff;
-  color: #101010;
+  background: var(--theme-surface, #ffffff);
+  color: var(--theme-text, #101010);
   font-size: 1rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--theme-border-light, #e5e7eb);
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-global-map:hover { background: #f9fafb; }
-.btn-global-map:active { background: #f3f4f6; }
+.btn-global-map:hover {
+  background: var(--theme-dropdown-hover, #f9fafb);
+}
+
+.btn-global-map:active {
+  background: var(--theme-dropdown-hover, #f3f4f6);
+}
 
 
 
 /* ── Timeline container ──────────────────────────────────────────── */
 .timeline-content-wrapper {
   flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Timeline Swipeable Area - This is where swipe happens */
+.timeline-swipeable-area {
+  flex: 1;
+  position: relative;
+  overflow: visible;
+  touch-action: pan-y; /* Allow vertical scroll, enable horizontal swipe detection */
 }
 
 .timeline-container {
@@ -619,11 +615,12 @@ onMounted(() => {
   position: absolute;
   top: 36px;
   bottom: 36px;
-  left: 27px; /* Align precisely with the center of the 14px dots (padding-left 16px + column center 11px) */
+  left: 27px;
   width: 0;
-  border-left: 2.5px dashed #cbd5e1;
+  border-left: 2.5px dashed var(--theme-dot-line);
   z-index: 0;
   pointer-events: none;
+  transition: border-color 0.3s ease;
 }
 
 /* ── Month groups ────────────────────────────────────────────────── */
@@ -640,16 +637,15 @@ onMounted(() => {
   margin-bottom: 16px;
   padding-top: 8px;
   padding-bottom: 8px;
-  /* Sticky relative to .timeline-content-wrapper (the new scroll container) */
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #f8fafc;
-  /* Bleed background to edges */
+  background: var(--theme-month-bg);
   margin-left: -16px;
   margin-right: -16px;
-  padding-left: 52px; /* 36px original + 16px compensation */
+  padding-left: 52px;
   padding-right: 16px;
+  transition: background 0.3s ease;
 }
 
 .month-label-wrap {
@@ -663,19 +659,21 @@ onMounted(() => {
   font-family: 'Outfit', 'Space Grotesk', sans-serif;
   font-size: 1rem;
   font-weight: 900;
-  color: #101010;
+  color: var(--theme-month-label);
   text-transform: uppercase;
   letter-spacing: -0.3px;
+  transition: color 0.3s ease;
 }
 
 .month-count {
   font-family: 'Inter', sans-serif;
   font-size: 0.68rem;
   font-weight: 700;
-  color: #9ca3af;
-  background: #f1f5f9;
+  color: var(--theme-month-count-text);
+  background: var(--theme-month-count-bg);
   padding: 1px 6px;
   border-radius: 20px;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .month-line {
@@ -725,12 +723,12 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  background: #ffffff;
-  border: 2px solid #101010;
-  box-shadow: 3px 3px 0 #101010;
+  background: var(--theme-moment-layer1, #ffffff);
+  border: 2px solid var(--theme-moment-layer2, #101010);
+  box-shadow: 3px 3px 0 var(--theme-moment-layer2, #101010);
   padding: 14px 10px 14px 12px;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s ease;
+  transition: transform 0.1s, box-shadow 0.1s, background-color 0.3s ease;
   -webkit-tap-highlight-color: transparent;
   position: relative;
 }
@@ -771,13 +769,14 @@ onMounted(() => {
 .trip-card:hover,
 .trip-card:focus {
   transform: translate(-2px, -2px);
-  box-shadow: 5px 5px 0 #101010;
+  box-shadow: 5px 5px 0 var(--theme-moment-layer2, #101010);
+  background: var(--theme-card-hover-bg);
   outline: none;
 }
 
 .trip-card:active {
   transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 #101010;
+  box-shadow: 1px 1px 0 var(--theme-moment-layer2, #101010);
 }
 
 
@@ -796,7 +795,7 @@ onMounted(() => {
   font-family: 'Inter', sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #101010;
+  color: var(--theme-text, #101010);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -816,16 +815,17 @@ onMounted(() => {
   font-family: 'Inter', sans-serif;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #374151;
-  background: #f1f5f9;
+  color: var(--theme-tag-text);
+  background: var(--theme-tag-bg);
   padding: 2px 8px;
   border-radius: 20px;
+  transition: background 0.3s ease;
 }
 
-.trip-tag i { font-size: 0.65rem; color: #6f6bd8; }
-.trip-tag--muted { color: #9ca3af; }
-.trip-tag--author { background: #f0f0ff; color: #6f6bd8; }
-.trip-tag--author i { color: #6f6bd8; }
+.trip-tag i { font-size: 0.65rem; color: var(--theme-accent, #6f6bd8); }
+.trip-tag--muted { color: var(--theme-text-muted, #9ca3af); }
+.trip-tag--author { background: var(--theme-accent-soft, #f0f0ff); color: var(--theme-accent, #6f6bd8); }
+.trip-tag--author i { color: var(--theme-accent, #6f6bd8); }
 
 /* Thumbnail strip */
 .thumb-strip {
@@ -844,8 +844,9 @@ onMounted(() => {
   border-radius: 6px;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1.5px solid #e5e7eb;
-  background: #f1f5f9;
+  border: 1.5px solid var(--theme-border-light, #e5e7eb);
+  background: var(--theme-surface-2, #f1f5f9);
+  transition: background 0.3s ease;
 }
 
 .thumb img {
@@ -862,15 +863,15 @@ onMounted(() => {
   font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
   font-weight: 800;
-  color: #6f6bd8;
-  background: #f4f3ff;
-  border-color: #6f6bd8;
+  color: var(--theme-accent, #6f6bd8);
+  background: var(--theme-accent-soft, #f4f3ff);
+  border-color: var(--theme-accent, #6f6bd8);
 }
 
 .thumb-empty {
   font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--theme-text-muted, #9ca3af);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -879,7 +880,7 @@ onMounted(() => {
 /* Chevron */
 .trip-chevron {
   flex-shrink: 0;
-  color: #d1d5db;
+  color: var(--theme-text-muted, #d1d5db);
   font-size: 0.8rem;
   padding-top: 3px;
   transition: color 0.15s, transform 0.15s;
@@ -891,13 +892,13 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 60px 24px;
-  border: 2px dashed #d1d5db;
-  background: #fafafa;
+  border: 2px dashed var(--theme-empty-border);
+  background: var(--theme-surface-2);
 }
 
 .empty-icon {
   font-size: 2.6rem;
-  color: #d1d5db;
+  color: var(--theme-text-muted, #d1d5db);
   margin-bottom: 16px;
 }
 
@@ -905,7 +906,7 @@ onMounted(() => {
   font-family: 'Outfit', sans-serif;
   font-size: 1.1rem;
   font-weight: 800;
-  color: #374151;
+  color: var(--theme-text, #374151);
   margin: 0 0 8px;
   line-height: 1.3;
 }
@@ -913,7 +914,7 @@ onMounted(() => {
 .empty-state p {
   font-family: 'Inter', sans-serif;
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: var(--theme-text-muted, #9ca3af);
   margin: 0 0 20px;
 }
 
@@ -921,8 +922,8 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #6f6bd8;
-  color: #ffffff;
+  background: var(--theme-accent, #6f6bd8);
+  color: var(--theme-bg, #ffffff);
   border: 2px solid #101010;
   padding: 10px 20px;
   font-family: 'Inter', sans-serif;
@@ -971,8 +972,8 @@ onMounted(() => {
 }
 
 .detail-modal-content {
-  background: #ffffff;
-  border: 2px solid #101010;
+  background: var(--theme-modal-bg, #ffffff);
+  border: 2px solid var(--theme-modal-border, #101010);
   box-shadow: 6px 6px 0 #101010;
   width: 100%;
   max-width: 700px;
@@ -1039,7 +1040,7 @@ onMounted(() => {
 .detail-title {
   font-family: 'Outfit', sans-serif;
   font-size: 1.8rem;
-  color: #101010;
+  color: var(--theme-text, #101010);
   margin: 0 0 12px;
   font-weight: 800;
   padding-right: 80px; /* space for absolute buttons */
@@ -1062,12 +1063,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #ffffff;
-  color: #101010;
+  background: var(--theme-modal-bg, #ffffff);
+  color: var(--theme-text, #101010);
 }
 
 .map-pill {
-  background: #e0e7ff; /* soft indigo */
+  background: var(--theme-accent-soft, #e0e7ff); /* soft indigo */
   cursor: default;
 }
 .map-pill.has-map {
@@ -1084,7 +1085,7 @@ onMounted(() => {
 }
 
 .date-pill {
-  background: #f3f4f6;
+  background: var(--theme-surface-2, #f3f4f6);
 }
 
 .detail-map-container {
@@ -1112,7 +1113,7 @@ onMounted(() => {
 .gallery-empty {
   text-align: center;
   padding: 40px 20px;
-  color: #9ca3af;
+  color: var(--theme-text-muted, #9ca3af);
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   display: flex;
@@ -1122,7 +1123,7 @@ onMounted(() => {
 }
 .gallery-empty i {
   font-size: 2.5rem;
-  color: #d1d5db;
+  color: var(--theme-text-muted, #d1d5db);
 }
 
 .gallery-card-wrap {
