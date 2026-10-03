@@ -14,7 +14,7 @@
                 <template v-if="selectedSubRegion">
                   <button class="pmap-breadcrumb-btn" @click="selectedSubRegion = null">Banten</button>
                   <span class="pmap-breadcrumb-sep">›</span>
-                  {{ selectedSubRegion.name }}
+                  {{ selectedSubRegionName }}
                 </template>
                 <template v-else>Peta Perjalanan</template>
               </h2>
@@ -42,14 +42,32 @@
 
         <!-- Map Body -->
         <div class="pmap-body">
-          <template v-if="selectedProvince">
-            <ProvinceMapViewer
-              :province="selectedProvince"
+          <!-- Tangsel drill-down: dedicated Tangsel kecamatan map -->
+          <template v-if="selectedSubRegion === 'tangsel'">
+            <TangselMap
+              :markers="markersForSubRegion"
+              @marker-click="onMarkerClick"
+            />
+          </template>
+
+          <!-- Banten province: dedicated SVG with internal kab/kota boundaries -->
+          <template v-else-if="selectedProvince?.id === 'banten'">
+            <BantenMap
               :markers="markersForProvince"
               @marker-click="onMarkerClick"
               @subregion-click="onSubRegionClick"
             />
           </template>
+
+          <!-- Generic provinces: ProvinceMapViewer with SVG path -->
+          <template v-else-if="selectedProvince">
+            <ProvinceMapViewer
+              :province="selectedProvince"
+              :markers="markersForProvince"
+              @marker-click="onMarkerClick"
+            />
+          </template>
+
           <div v-else class="pmap-empty-state">
             <div class="pmap-empty-icon">🗺️</div>
             <p class="pmap-empty-text">Pilih provinsi dulu!</p>
@@ -81,7 +99,7 @@
         <div class="pmap-statsbar">
           <template v-if="selectedSubRegion">
             <span class="pmap-stat-badge pmap-stat-province">
-              <i class="fa-solid fa-building"></i> {{ selectedSubRegion.name }}
+              <i class="fa-solid fa-building"></i> {{ selectedSubRegionName }}
             </span>
             <span class="pmap-stat-badge pmap-stat-count">
               <i class="fa-solid fa-images"></i> {{ markersForSubRegion.length }} momen
@@ -111,8 +129,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import ProvinceMapViewer from './ProvinceMapViewer.vue';
+import BantenMap from '../maps/BantenMap.vue';
+import TangselMap from '../maps/TangselMap.vue';
 import { getAllProvinces, getProvinceData } from '../../data/provinceMaps';
-import type { ProvinceMapData, SubRegionData } from '../../data/provinceMaps';
+import type { ProvinceMapData } from '../../data/provinceMaps';
 import { indonesiaLocations } from '../../data/indonesiaLocations';
 import type { TimelineData } from '../../data/timeline';
 
@@ -122,7 +142,7 @@ const emit = defineEmits<{ (e: 'open-detail', item: TimelineData): void }>();
 const isOpen = ref(false);
 const selectedProvinceId = ref<string | null>(null);
 const activeMarker = ref<TimelineData | null>(null);
-const selectedSubRegion = ref<SubRegionData | null>(null);
+const selectedSubRegion = ref<string | null>(null);  // stores region id like 'tangsel'
 
 const PROVINCE_NAME_TO_ID: Record<string, string> = {
   'dki jakarta': 'jakarta',
@@ -195,9 +215,24 @@ const markersForSubRegion = computed<TimelineData[]>(() => {
       kab_tangerang:   ['kabupaten tangerang', 'kab tangerang', 'tigaraksa', 'tangerang'],
       kota_tangerang:  ['kota tangerang'],
     };
-    const kws = subKeywords[sub.id] ?? [sub.name.toLowerCase()];
+    const kws = subKeywords[sub] ?? [sub];
     return kws.some(kw => loc.includes(kw));
   });
+});
+
+// Sub-region display name
+const selectedSubRegionName = computed(() => {
+  const NAMES: Record<string, string> = {
+    tangsel: 'Kota Tangerang Selatan',
+    cilegon: 'Kota Cilegon',
+    kota_serang: 'Kota Serang',
+    kab_serang: 'Kabupaten Serang',
+    pandeglang: 'Kabupaten Pandeglang',
+    lebak: 'Kabupaten Lebak',
+    kab_tangerang: 'Kabupaten Tangerang',
+    kota_tangerang: 'Kota Tangerang',
+  };
+  return selectedSubRegion.value ? (NAMES[selectedSubRegion.value] ?? selectedSubRegion.value) : null;
 });
 
 function open() {
@@ -209,7 +244,7 @@ function open() {
 function close() { isOpen.value = false; activeMarker.value = null; selectedSubRegion.value = null; }
 function onSelectProvince(id: string) { selectedProvinceId.value = id; activeMarker.value = null; selectedSubRegion.value = null; }
 function onMarkerClick(item: TimelineData) { activeMarker.value = item; }
-function onSubRegionClick(sub: SubRegionData) { selectedSubRegion.value = sub; activeMarker.value = null; }
+function onSubRegionClick(regionId: string) { selectedSubRegion.value = regionId; activeMarker.value = null; }
 function openDetail() { if (!activeMarker.value) return; emit('open-detail', activeMarker.value); close(); }
 
 defineExpose({ open, close });
