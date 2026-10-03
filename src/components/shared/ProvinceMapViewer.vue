@@ -30,8 +30,8 @@
           <!-- Province shape -->
           <path
             :d="province.svgPath"
-            fill="var(--theme-surface, #e2e8f0)"
-            stroke="var(--theme-border, #101010)"
+            fill="#fde68a"
+            stroke="#1a1a2e"
             stroke-width="0.5"
             stroke-linejoin="round"
           />
@@ -46,10 +46,18 @@
             <circle
               :cx="getMarkerPos(marker).x"
               :cy="getMarkerPos(marker).y"
+              r="2.2"
+              :fill="marker.dotColor"
+              opacity="0.3"
+              class="pmap-marker-glow"
+            />
+            <circle
+              :cx="getMarkerPos(marker).x"
+              :cy="getMarkerPos(marker).y"
               r="1.4"
               :fill="marker.dotColor"
               stroke="#fff"
-              stroke-width="0.4"
+              stroke-width="0.5"
               class="pmap-marker"
             />
             <title>{{ marker.title }} — {{ marker.location }}</title>
@@ -174,43 +182,51 @@ function getMarkerPos(marker: TimelineData) {
   align-items: center;
   gap: 6px;
   justify-content: flex-end;
+  padding: 8px 10px 0;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
 }
 .pmap-ctrl-btn {
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--theme-border, #101010);
-  background: var(--theme-surface, #fff);
-  color: var(--theme-text, #101010);
-  font-size: 0.85rem;
+  width: 34px; height: 34px;
+  border: 2px solid #1a1a2e;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a2e;
+  font-size: 0.82rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 2px 2px 0 var(--theme-border, #101010);
-  transition: transform 0.1s;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 2px 0 #1a1a2e;
+  transition: transform 0.08s, box-shadow 0.08s;
 }
-.pmap-ctrl-btn:hover { transform: translate(-1px, -1px); }
-.pmap-ctrl-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--theme-border, #101010); }
+.pmap-ctrl-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #1a1a2e; }
+.pmap-ctrl-btn:active { transform: translate(1px,1px); box-shadow: 0 0 0 #1a1a2e; }
 
 .pmap-zoom-label {
   font-family: 'Inter', monospace;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--theme-text-secondary, #64748b);
-  min-width: 40px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #374151;
+  min-width: 36px;
   text-align: center;
+  background: #ffdd00;
+  border: 2px solid #1a1a2e;
+  border-radius: 4px;
+  padding: 2px 4px;
 }
 
 /* Canvas */
 .pmap-canvas {
   flex: 1;
-  border: 2.5px solid var(--theme-border, #101010);
-  box-shadow: 4px 4px 0 var(--theme-border, #101010);
-  background: var(--theme-background, #f8fafc);
+  background: #fffbf0;
   overflow: hidden;
   cursor: grab;
   position: relative;
   min-height: 240px;
+  /* dot grid pattern */
+  background-image: radial-gradient(circle, #fde68a 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 .pmap-canvas:active { cursor: grabbing; }
 
@@ -221,13 +237,9 @@ function getMarkerPos(marker: TimelineData) {
 }
 
 /* Markers */
-.pmap-marker-group {
-  cursor: pointer;
-}
-.pmap-marker {
-  transition: r 0.15s;
-}
-.pmap-marker-group:hover .pmap-marker {
-  r: 2.2;
-}
+.pmap-marker-group { cursor: pointer; }
+.pmap-marker { transition: r 0.15s; }
+.pmap-marker-group:hover .pmap-marker { r: 2.4; }
+.pmap-marker-glow { transition: r 0.15s, opacity 0.15s; }
+.pmap-marker-group:hover .pmap-marker-glow { r: 4; opacity: 0.4; }
 </style>
