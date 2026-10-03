@@ -1,33 +1,112 @@
-// Province Map Data — Phase 1
+// Province Map Data
 // SVG paths extracted from IndonesiaMapSVG.vue
-// Bounds computed from SVG viewBox coordinates
+
+// ── Sub-region (Kabupaten/Kota) data ─────────────────────────────────────────
+export interface SubRegionData {
+  id: string;
+  name: string;
+  type: 'kabupaten' | 'kota';
+  /** SVG polygon path in same coordinate space as parent province */
+  svgPath: string;
+  /** Whether this sub-region has moments data (enables click) */
+  hasData: boolean;
+  /** Geographic center for label placement */
+  center: { lat: number; lng: number };
+}
 
 export interface ProvinceMapData {
   id: string;
   name: string;
   svgPath: string;
-  bounds: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  center: {
-    lat: number;
-    lng: number;
-  };
+  bounds: { x: number; y: number; width: number; height: number };
+  center: { lat: number; lng: number };
+  subRegions?: SubRegionData[];
 }
 
 // Indonesia geographic bounds for coordinate projection
 const INDONESIA_BOUNDS = {
-  minLng: 95,
-  maxLng: 141,
-  minLat: -11,
-  maxLat:  8,
+  minLng: 95, maxLng: 141,
+  minLat: -11, maxLat: 8,
 };
 
-// Full SVG viewBox of IndonesiaMapSVG: 0 0 650 370
-// Bounds below are approximate from getBBox() analysis of each path
+// ── Banten Sub-Regions ────────────────────────────────────────────────────────
+// Province SVG bounds: x=[177,203], y=[228,250]  (x→East, y→South)
+// Polygons are approximate but geographically proportional:
+//   Kota Cilegon      : NW coastal strip (Selat Sunda)
+//   Kabupaten Serang  : North, wraps around Kota Serang
+//   Kota Serang       : Small enclave city, center-north
+//   Kabupaten Pandeglang : Large SW peninsula
+//   Kabupaten Lebak   : Large southern interior
+//   Kabupaten Tangerang  : Large NE, surrounds two cities
+//   Kota Tangerang    : Small NE city, borders DKI Jakarta (north)
+//   Kota Tangerang Selatan : Small E city, borders DKI Jakarta (east)
+
+const BANTEN_SUB_REGIONS: SubRegionData[] = [
+  {
+    id: 'cilegon',
+    name: 'Kota Cilegon',
+    type: 'kota',
+    svgPath: 'M 177 230.5 L 180 228.5 L 181.5 229.5 L 181.5 233 L 181 237.5 L 178.5 239 L 177 237 Z',
+    hasData: false,
+    center: { lat: -6.002, lng: 106.004 },
+  },
+  {
+    id: 'kab_serang',
+    name: 'Kabupaten Serang',
+    type: 'kabupaten',
+    svgPath: 'M 180 228.5 L 196 228.5 L 197 234 L 191 240.5 L 184.5 241 L 181 239 L 178.5 239 L 181 237.5 L 181.5 233 L 181.5 229.5 Z',
+    hasData: false,
+    center: { lat: -6.198, lng: 106.115 },
+  },
+  {
+    id: 'kota_serang',
+    name: 'Kota Serang',
+    type: 'kota',
+    svgPath: 'M 183 230.5 L 187 230.5 L 187 235 L 183 235 Z',
+    hasData: false,
+    center: { lat: -6.12, lng: 106.15 },
+  },
+  {
+    id: 'pandeglang',
+    name: 'Kabupaten Pandeglang',
+    type: 'kabupaten',
+    svgPath: 'M 177 237 L 184.5 241 L 188 242.5 L 187 247 L 182.5 250 L 177 249.5 Z',
+    hasData: false,
+    center: { lat: -6.9, lng: 105.86 },
+  },
+  {
+    id: 'lebak',
+    name: 'Kabupaten Lebak',
+    type: 'kabupaten',
+    svgPath: 'M 188 242.5 L 202.5 241.5 L 202 250 L 182.5 250 L 187 247 Z',
+    hasData: false,
+    center: { lat: -6.78, lng: 106.28 },
+  },
+  {
+    id: 'kab_tangerang',
+    name: 'Kabupaten Tangerang',
+    type: 'kabupaten',
+    svgPath: 'M 196 228.5 L 203 228.5 L 203 241.5 L 191 240.5 L 197 234 Z',
+    hasData: false,
+    center: { lat: -6.3, lng: 106.48 },
+  },
+  {
+    id: 'kota_tangerang',
+    name: 'Kota Tangerang',
+    type: 'kota',
+    svgPath: 'M 199 228.5 L 203 228.5 L 203 233.5 L 199.5 233.5 Z',
+    hasData: false,
+    center: { lat: -6.178, lng: 106.63 },
+  },
+  {
+    id: 'tangsel',
+    name: 'Kota Tangerang Selatan',
+    type: 'kota',
+    svgPath: 'M 199 233.5 L 203 233.5 L 203 240 L 199 240 Z',
+    hasData: true,
+    center: { lat: -6.29, lng: 106.71 },
+  },
+];
 
 const PROVINCE_DATA: Record<string, ProvinceMapData> = {
   jakarta: {
@@ -43,6 +122,7 @@ const PROVINCE_DATA: Record<string, ProvinceMapData> = {
     svgPath: 'm 199.16571,231.92789 -0.6,0.25 -0.04,1.12 0.61,0.33 -0.02,0.67 0.39,0.08 0.16,0.73 0.44,0.76 0,0 -0.04,0.15 0,0 -0.18,0.61 -2.91,0.02 -0.3,-0.36 -1.02,-0.27 -0.1,0.06 0.3,0.16 0.01,0.25 -0.54,0.04 -0.21,-0.65 -0.33,-0.1 -0.67,0.64 0.44,1.4 -0.25,0.33 -0.62,0.09 -0.11,0.96 0.56,1.24 -0.09,1.73 0.11,0.34 0.16,0 0.44,0.48 0.21,-0.03 0.55,0.66 -0.37,0.25 -0.03,0.27 -0.94,0.44 -0.08,0.71 -0.65,0.69 0.1,0.44 -0.18,0.18 0.16,0.76 0,0 -0.49,0.19 -1.01,0.05 -0.09,-0.28 -0.66,-0.03 -0.06,-0.23 -0.37,-0.1 0.03,-0.43 -0.91,-0.43 -0.55,-0.02 -0.54,-0.39 -0.46,-0.1 -0.7,-0.81 -0.54,-0.23 -1.44,-0.12 -2.94,0.61 -1.5,-0.19 -2.12,0.33 -0.4,0.29 -0.7,-0.19 -0.34,0.12 -0.61,-0.55 -0.31,-0.05 -0.15,0.31 -0.19,0.01 0.07,-0.26 -0.57,-0.38 -1.15,-0.24 -0.32,0.07 -0.2,0.43 -0.33,0.28 -0.41,-0.1 -0.15,-1 -0.21,-0.28 -0.16,0 -0.07,-0.26 0.98,0.07 0.33,-0.45 0.8,-0.58 -0.12,-0.43 0.83,-0.4 0.57,1.27 -0.18,0.05 -0.07,0.23 0.5,0.33 0.32,0.53 0.05,0.44 0.31,0.25 0.21,-0.04 0.52,-0.63 0.14,-0.99 1.05,-0.86 0.07,-0.4 0.36,-0.14 0.32,-0.42 0.22,-0.71 -0.09,-0.8 0.54,-0.94 0.4,-0.31 0.13,0.48 -0.18,0.24 0.41,0.32 0.34,0.06 1.02,-0.21 0.7,-0.96 0.17,-0.58 0.08,-3.08 0.61,-2.25 0.39,-0.24 -0.03,-0.61 0.75,-0.47 0.27,-0.4 0.78,-0.64 0.18,-0.87 -0.27,0.05 0.87,-0.84 0.74,-0.11 0.56,0.65 -0.02,1.29 1.02,0.55 0.26,0.03 0.76,-0.35 0.26,-0.29 0.12,-0.49 0.23,-0.17 0.87,0.29 0.12,0.2 0.29,0.09 0.4,-0.41 0.27,0.26 0.32,0.03 -0.09,0.15 0.23,0.52 0.49,0.26 0.38,-0.07 0.73,0.23 0.73,-0.53 0.49,0.31 0.93,-0.17 0.21,-0.16 0.43,0.25 0.49,-0.15 0.47,0.46 -0.09,0.12 z',
     bounds: { x: 177, y: 228, width: 26, height: 22 },
     center: { lat: -6.43, lng: 106.00 },
+    subRegions: BANTEN_SUB_REGIONS,
   },
   jawa_barat: {
     id: 'jawa_barat',
@@ -63,7 +143,6 @@ export function getAllProvinces(): ProvinceMapData[] {
 
 /**
  * Convert real-world lat/lng to SVG coordinate space.
- * Uses linear projection relative to IndonesiaMapSVG viewBox.
  */
 export function latLngToSVG(
   lat: number,
@@ -72,9 +151,8 @@ export function latLngToSVG(
 ): { x: number; y: number } {
   const nLng = (lng - INDONESIA_BOUNDS.minLng) / (INDONESIA_BOUNDS.maxLng - INDONESIA_BOUNDS.minLng);
   const nLat = (lat - INDONESIA_BOUNDS.minLat) / (INDONESIA_BOUNDS.maxLat - INDONESIA_BOUNDS.minLat);
-
   return {
     x: bounds.x + nLng * bounds.width,
-    y: bounds.y + (1 - nLat) * bounds.height,  // SVG Y axis is inverted
+    y: bounds.y + (1 - nLat) * bounds.height,
   };
 }

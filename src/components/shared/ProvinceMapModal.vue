@@ -10,7 +10,14 @@
               <i class="fa-solid fa-map-location-dot"></i>
             </div>
             <div>
-              <h2 class="pmap-topbar-title">Peta Perjalanan</h2>
+              <h2 class="pmap-topbar-title">
+                <template v-if="selectedSubRegion">
+                  <button class="pmap-breadcrumb-btn" @click="selectedSubRegion = null">Banten</button>
+                  <span class="pmap-breadcrumb-sep">›</span>
+                  {{ selectedSubRegion.name }}
+                </template>
+                <template v-else>Peta Perjalanan</template>
+              </h2>
               <p class="pmap-topbar-sub">{{ totalItems }} momen · {{ totalProvinces }} provinsi</p>
             </div>
           </div>
@@ -40,6 +47,7 @@
               :province="selectedProvince"
               :markers="markersForProvince"
               @marker-click="onMarkerClick"
+              @subregion-click="onSubRegionClick"
             />
           </template>
           <div v-else class="pmap-empty-state">
@@ -71,7 +79,18 @@
 
         <!-- Stats Bar -->
         <div class="pmap-statsbar">
-          <template v-if="selectedProvince">
+          <template v-if="selectedSubRegion">
+            <span class="pmap-stat-badge pmap-stat-province">
+              <i class="fa-solid fa-building"></i> {{ selectedSubRegion.name }}
+            </span>
+            <span class="pmap-stat-badge pmap-stat-count">
+              <i class="fa-solid fa-images"></i> {{ markersForSubRegion.length }} momen
+            </span>
+            <button class="pmap-stat-badge pmap-stat-back" @click="selectedSubRegion = null">
+              <i class="fa-solid fa-arrow-left"></i> Kembali ke Banten
+            </button>
+          </template>
+          <template v-else-if="selectedProvince">
             <span class="pmap-stat-badge pmap-stat-province">
               <i class="fa-solid fa-map"></i> {{ selectedProvince.name }}
             </span>
@@ -93,7 +112,7 @@
 import { ref, computed } from 'vue';
 import ProvinceMapViewer from './ProvinceMapViewer.vue';
 import { getAllProvinces, getProvinceData } from '../../data/provinceMaps';
-import type { ProvinceMapData } from '../../data/provinceMaps';
+import type { ProvinceMapData, SubRegionData } from '../../data/provinceMaps';
 import { indonesiaLocations } from '../../data/indonesiaLocations';
 import type { TimelineData } from '../../data/timeline';
 
@@ -103,6 +122,7 @@ const emit = defineEmits<{ (e: 'open-detail', item: TimelineData): void }>();
 const isOpen = ref(false);
 const selectedProvinceId = ref<string | null>(null);
 const activeMarker = ref<TimelineData | null>(null);
+const selectedSubRegion = ref<SubRegionData | null>(null);
 
 const PROVINCE_NAME_TO_ID: Record<string, string> = {
   'dki jakarta': 'jakarta',
@@ -157,15 +177,39 @@ const markersForProvince = computed<TimelineData[]>(() => {
 const totalItems = computed(() => props.timelineItems.length);
 const totalProvinces = computed(() => allAvailableProvinces.value.length);
 
+// Markers filtered to selected sub-region
+const markersForSubRegion = computed<TimelineData[]>(() => {
+  if (!selectedSubRegion.value) return [];
+  const sub = selectedSubRegion.value;
+  // Filter by sub-region keywords — Tangsel keywords match via indonesiaLocations
+  return markersForProvince.value.filter(item => {
+    const loc = item.location?.toLowerCase() ?? '';
+    // Match by sub-region id: tangsel = 'tangsel', 'tangerang selatan', etc.
+    const subKeywords: Record<string, string[]> = {
+      tangsel:         ['tangerang selatan', 'tangsel', 'ciputat', 'pamulang', 'pondok aren', 'serpong', 'bintaro'],
+      cilegon:         ['cilegon'],
+      kota_serang:     ['kota serang'],
+      kab_serang:      ['kabupaten serang', 'kab serang'],
+      pandeglang:      ['pandeglang'],
+      lebak:           ['lebak'],
+      kab_tangerang:   ['kabupaten tangerang', 'kab tangerang', 'tigaraksa', 'tangerang'],
+      kota_tangerang:  ['kota tangerang'],
+    };
+    const kws = subKeywords[sub.id] ?? [sub.name.toLowerCase()];
+    return kws.some(kw => loc.includes(kw));
+  });
+});
+
 function open() {
   isOpen.value = true;
   if (!selectedProvinceId.value && availableProvinces.value.length > 0) {
     selectedProvinceId.value = availableProvinces.value[0].id;
   }
 }
-function close() { isOpen.value = false; activeMarker.value = null; }
-function onSelectProvince(id: string) { selectedProvinceId.value = id; activeMarker.value = null; }
+function close() { isOpen.value = false; activeMarker.value = null; selectedSubRegion.value = null; }
+function onSelectProvince(id: string) { selectedProvinceId.value = id; activeMarker.value = null; selectedSubRegion.value = null; }
 function onMarkerClick(item: TimelineData) { activeMarker.value = item; }
+function onSubRegionClick(sub: SubRegionData) { selectedSubRegion.value = sub; activeMarker.value = null; }
 function openDetail() { if (!activeMarker.value) return; emit('open-detail', activeMarker.value); close(); }
 
 defineExpose({ open, close });
@@ -408,6 +452,30 @@ defineExpose({ open, close });
 }
 .pmap-stat-province { background: #e0f2fe; }
 .pmap-stat-count    { background: #fef9c3; }
+.pmap-stat-back {
+  cursor: pointer;
+  background: #fff;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.pmap-stat-back:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #1a1a2e; }
+.pmap-stat-back:active { transform: translate(1px,1px); box-shadow: 0 0 0 #1a1a2e; }
+
+/* Breadcrumb in topbar */
+.pmap-breadcrumb-btn {
+  background: none;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: inherit;
+  font-weight: 900;
+  color: #3b82f6;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s;
+}
+.pmap-breadcrumb-btn:hover { text-decoration-color: #3b82f6; }
+.pmap-breadcrumb-sep { color: #9ca3af; margin: 0 4px; font-weight: 400; }
 
 /* ─── Transitions ─── */
 .pmap-fade-enter-active { transition: opacity 0.22s ease; }
