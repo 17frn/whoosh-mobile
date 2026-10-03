@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import OnboardingView from './views/OnboardingView.vue';
-import AuthModal from './components/modals/AuthModal.vue';
-import HomeView from './views/HomeView.vue';
-import TimelineView from './views/TimelineView.vue';
-import SettingsView from './views/SettingsView.vue';
-import GlobalMapModal from './components/modals/GlobalMapModal.vue';
-import BottomNav from './components/layout/BottomNav.vue';
-import AddMomentModal from './components/modals/AddMomentModal.vue';
-import EditMomentModal from './components/modals/EditMomentModal.vue';
-import { getSessionByToken, createSessionWithToken, getTimelineData, addMoment, registerCollaborator, saveAliasToSession, removeCollaborator } from './data/authService';
-import { getActiveLocalSession, getLocalTimeline, addLocalMoment, logoutLocalUser, getActiveLocalShareToken } from './data/localStore';
 import { Device } from '@capacitor/device';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import BottomNav from './components/layout/BottomNav.vue';
+import HeroHeader from './components/layout/HeroHeader.vue';
+import AddMomentModal from './components/modals/AddMomentModal.vue';
+import AuthModal from './components/modals/AuthModal.vue';
+import EditMomentModal from './components/modals/EditMomentModal.vue';
+import GlobalMapModal from './components/modals/GlobalMapModal.vue';
+import { addMoment, createSessionWithToken, getSessionByToken, getTimelineData, registerCollaborator, removeCollaborator, saveAliasToSession } from './data/authService';
+import { addLocalMoment, getActiveLocalSession, getActiveLocalShareToken, getLocalTimeline, logoutLocalUser } from './data/localStore';
 import type { TimelineData, TimelineMoment } from './data/timeline';
+import HomeView from './views/HomeView.vue';
+import OnboardingView from './views/OnboardingView.vue';
+import SettingsView from './views/SettingsView.vue';
+import TimelineView from './views/TimelineView.vue';
 
 // ── App State ─────────────────────────────────────────────────────────
 type AuthType = 'cloud' | 'local' | null;
@@ -817,18 +818,203 @@ const showDeleteMomentModal = ref(false);
 const selectedMomentsToDelete = ref<string[]>([]);
 const isFabOpen = ref(false);
 
+// Delete modal v2 filters
+// ── Delete modal year paging ────────────────────────────────────────────
+const YEARS_PER_PAGE = 9;
+const DEL_BASE_YEAR  = 2020;
+// Start on the page that contains the current year
+const currentYear   = new Date().getFullYear();
+const yearPageIndex = ref(Math.floor((currentYear - DEL_BASE_YEAR) / YEARS_PER_PAGE));
+
+// Drag/swipe state
+const delYearDragX      = ref(0);
+const delYearIsDragging = ref(false);
+const delYearSlideDir   = ref<'left' | 'right'>('left'); // which direction to animate
+let   delYearStartX     = 0;
+
+const delTotalYearPages = computed(() => {
+  const maxYear = Math.max(new Date().getFullYear() + 5, DEL_BASE_YEAR + YEARS_PER_PAGE - 1);
+  return Math.ceil((maxYear - DEL_BASE_YEAR + 1) / YEARS_PER_PAGE);
+});
+
+// 9 years for current page, descending (largest first)
+const delYearPageYears = computed(() => {
+  const start = DEL_BASE_YEAR + yearPageIndex.value * YEARS_PER_PAGE;
+  const years: number[] = [];
+  for (let i = YEARS_PER_PAGE - 1; i >= 0; i--) years.push(start + i);
+  return years;
+});
+
+// Live drag offset (only during drag)
+const delYearTrackStyle = computed(() => ({
+  transform: `translateX(${delYearDragX.value}px)`,
+  transition: delYearIsDragging.value ? 'none' : 'transform 0.35s cubic-bezier(0.25,1,0.5,1)',
+}));
+
+function delYearTouchStart(e: TouchEvent) {
+  delYearStartX          = e.touches[0].clientX;
+  delYearIsDragging.value = true;
+  delYearDragX.value     = 0;
+}
+function delYearTouchMove(e: TouchEvent) {
+  if (!delYearIsDragging.value) return;
+  // Follow finger, clamped to ±80px for a "rubber band" feel
+  const raw = e.touches[0].clientX - delYearStartX;
+  delYearDragX.value = Math.max(-80, Math.min(80, raw));
+}
+function delYearTouchEnd(e: TouchEvent) {
+  delYearIsDragging.value = false;
+  const diff = e.changedTouches[0].clientX - delYearStartX;
+  const threshold = 50;
+
+  if (diff > threshold && yearPageIndex.value < delTotalYearPages.value - 1) {
+    // Swipe RIGHT → later years (2029+)
+    delYearSlideDir.value = 'left';
+    yearPageIndex.value++;
+  } else if (diff < -threshold && yearPageIndex.value > 0) {
+    // Swipe LEFT → earlier years
+    delYearSlideDir.value = 'right';
+    yearPageIndex.value--;
+  }
+  delYearDragX.value = 0;
+}
+
 // Close speed dial when switching tabs
 watch(activeTab, () => { isFabOpen.value = false; });
+
+const deleteSelectedYear  = ref<number>(new Date().getFullYear());
+const deleteSelectedMonth = ref<string>('');
+const showDeleteSearch    = ref(false);
+const deleteSearchQuery   = ref('');
+const delSearchInputRef   = ref<HTMLInputElement | null>(null);
+
+// Auto-focus search input when search panel opens
+watch(showDeleteSearch, (val) => {
+  if (val) nextTick(() => delSearchInputRef.value?.focus());
+});
+
+// Reset month filter when year changes
+watch(deleteSelectedYear, () => {
+  deleteSelectedMonth.value = '';
+});
+
+// Computed for delete modal v2
+// Helper: parse Indonesian date string "DD MMMM YYYY" → { year, month }
+const MONTHS_ID: Record<string, string> = {
+  'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+  'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+  'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12',
+};
+const MONTHS_ID_LABEL: Record<string, string> = {
+  '01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April',
+  '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus',
+  '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember',
+};
+
+function parseDateID(dateStr: string): { year: number; monthNum: string; monthLabel: string } | null {
+  if (!dateStr) return null;
+  const parts = dateStr.trim().split(' ');
+  // Format: "DD MMMM YYYY" → parts[0]=day, parts[1]=month-name, parts[2]=year
+  if (parts.length === 3) {
+    const year = parseInt(parts[2], 10);
+    const monthNum = MONTHS_ID[parts[1]] ?? '';
+    const monthLabel = parts[1];
+    if (!isNaN(year) && monthNum) return { year, monthNum, monthLabel };
+  }
+  // Fallback: try YYYY-MM-DD
+  if (parts.length === 1 && dateStr.includes('-')) {
+    const [y, m] = dateStr.split('-');
+    const year = parseInt(y, 10);
+    if (!isNaN(year) && m) return { year, monthNum: m, monthLabel: MONTHS_ID_LABEL[m] ?? m };
+  }
+  return null;
+}
+
+const deleteMomentYears = computed(() => {
+  const years = new Set<number>();
+  timelineItems.value.forEach(item => {
+    const parsed = parseDateID(item.date);
+    if (parsed) years.add(parsed.year);
+  });
+  return Array.from(years).sort((a, b) => b - a);
+});
+
+// All 12 months always shown; months with data get a dot indicator
+const ALL_MONTHS_LABEL = [
+  'Januari','Februari','Maret','April','Mei','Juni',
+  'Juli','Agustus','September','Oktober','November','Desember'
+];
+
+const monthsWithData = computed(() => {
+  const set = new Set<string>();
+  timelineItems.value.forEach(item => {
+    const p = parseDateID(item.date);
+    if (p && p.year === deleteSelectedYear.value) set.add(p.monthLabel);
+  });
+  return set;
+});
+
+// Always return all 12 month names
+const deleteMomentMonths = computed(() => ALL_MONTHS_LABEL);
+
+const deleteFilteredMoments = computed(() => {
+  let items = timelineItems.value;
+
+  // Filter by year
+  items = items.filter(item => {
+    const parsed = parseDateID(item.date);
+    return parsed?.year === deleteSelectedYear.value;
+  });
+
+  // Filter by month label if selected
+  if (deleteSelectedMonth.value) {
+    items = items.filter(item => {
+      const parsed = parseDateID(item.date);
+      return parsed?.monthLabel === deleteSelectedMonth.value;
+    });
+  }
+
+  // Filter by search query (title or location)
+  if (deleteSearchQuery.value.trim()) {
+    const q = deleteSearchQuery.value.trim().toLowerCase();
+    items = items.filter(item =>
+      item.title?.toLowerCase().includes(q) ||
+      item.location?.toLowerCase().includes(q)
+    );
+  }
+
+  return items;
+});
 
 function closeDeleteMomentModal() {
   showDeleteMomentModal.value = false;
   selectedMomentsToDelete.value = [];
 }
 
+function openDeleteMomentModal() {
+  // Set initial year to the latest year available
+  const years = deleteMomentYears.value;
+  if (years.length > 0) {
+    deleteSelectedYear.value = years[0]; // First item is the latest (sorted desc)
+  }
+  deleteSelectedMonth.value = '';
+  selectedMomentsToDelete.value = [];
+  showDeleteMomentModal.value = true;
+}
+
 function toggleDeleteSelectAll(e: Event) {
   const checked = (e.target as HTMLInputElement).checked;
   if (checked) {
     selectedMomentsToDelete.value = timelineItems.value.map(i => i.id);
+  } else {
+    selectedMomentsToDelete.value = [];
+  }
+}
+
+function toggleDeleteSelectAllFiltered(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked;
+  if (checked) {
+    selectedMomentsToDelete.value = deleteFilteredMoments.value.map(i => i.id);
   } else {
     selectedMomentsToDelete.value = [];
   }
@@ -931,14 +1117,14 @@ async function handleDeleteMoments(ids: string[]) {
     <!-- ═══════════════════════════════════════════════
          SESSION HEADER
     ═══════════════════════════════════════════════ -->
-    <header class="session-header">
+    <header v-if="activeTab === 'settings'" class="session-header">
 
       <!-- ── SECTION 1: Main Header ─────────────────── -->
       <div class="hdr-section-main">
         <!-- Timeline title -->
         <div class="hdr-title-block">
           <h1 class="hdr-title">
-            {{ (!isCloud || (activeSessionName?.startsWith('Lokal:') && collaborators.length <= 1)) ? `SELAMAT DATANG ${userAlias ? userAlias.toUpperCase() : ''}` : (activeSessionName || 'Timeline Kami') }}
+            SELAMAT DATANG {{ userAlias ? userAlias.toUpperCase() : '' }}
           </h1>
         </div>
 
@@ -1026,6 +1212,9 @@ async function handleDeleteMoments(ids: string[]) {
 
     <!-- Home Tab -->
     <div v-if="activeTab === 'home'" class="tab-content">
+      <!-- Hero Header with Anime Banner -->
+      <HeroHeader :user-alias="userAlias" />
+      
       <HomeView
         :items="timelineItems"
         @add-moment="showAddModal = true"
@@ -1084,7 +1273,7 @@ async function handleDeleteMoments(ids: string[]) {
           <!-- Delete Moments -->
           <div class="speed-dial-item">
             <span class="speed-dial-label">Hapus Momen</span>
-            <button class="speed-dial-btn speed-dial-btn--delete" @click="isFabOpen = false; showDeleteMomentModal = true" aria-label="Hapus Momen">
+            <button class="speed-dial-btn speed-dial-btn--delete" @click="isFabOpen = false; openDeleteMomentModal()" aria-label="Hapus Momen">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
@@ -1113,62 +1302,163 @@ async function handleDeleteMoments(ids: string[]) {
       </button>
     </div>
 
-    <!-- Delete Moments Modal -->
+    <!-- Delete Moments Modal (v2 with Year & Month Filter) -->
     <Transition name="fade">
       <div v-if="showDeleteMomentModal" class="del-modal-overlay" @click.self="closeDeleteMomentModal">
-        <div class="del-modal-content">
-          <div class="del-modal-header">
-            <h3 class="del-modal-title"><i class="fa-solid fa-trash-can"></i> Hapus</h3>
-            <button class="del-modal-close" @click="closeDeleteMomentModal" aria-label="Tutup">&times;</button>
-          </div>
-          <p class="del-modal-subtitle">Tindakan ini <strong>tidak dapat dibatalkan</strong></p>
-
-          <div class="del-select-all">
-            <label class="del-checkbox-row del-checkbox-row--all">
-              <input
-                type="checkbox"
-                :checked="selectedMomentsToDelete.length === timelineItems.length && timelineItems.length > 0"
-                :indeterminate.prop="selectedMomentsToDelete.length > 0 && selectedMomentsToDelete.length < timelineItems.length"
-                @change="toggleDeleteSelectAll"
-              />
-              <span>Pilih Semua ({{ timelineItems.length }} momen)</span>
-            </label>
-          </div>
-
-          <div class="del-list">
-            <label
-              v-for="item in timelineItems"
-              :key="item.id"
-              class="del-checkbox-row"
-              :class="{ 'is-selected': selectedMomentsToDelete.includes(item.id) }"
-            >
-              <input type="checkbox" :value="item.id" v-model="selectedMomentsToDelete" />
-              <div class="del-item-info">
-                <div class="del-item-dot" :style="{ backgroundColor: item.dotColor }"></div>
-                <div class="del-item-text">
-                  <span class="del-item-title">{{ item.title }}</span>
-                  <span class="del-item-meta">
-                    <i class="fa-solid fa-location-dot"></i> {{ item.location || '—' }}
-                    &nbsp;·&nbsp;
-                    <i class="fa-regular fa-calendar"></i> {{ item.date || '—' }}
-                  </span>
-                </div>
+        <div class="del-modal-content-v2">
+          <!-- Header -->
+          <div class="del-modal-header-v2">
+            <div class="del-header-left">
+              <i class="fa-solid fa-trash-can del-header-icon"></i>
+              <div>
+                <h3 class="del-modal-title-v2">Hapus Momen</h3>
+                <p class="del-modal-subtitle-v2">Tindakan hapus tidak dapat dibatalkan</p>
               </div>
-            </label>
-            <div v-if="timelineItems.length === 0" class="del-empty">
-              <i class="fa-regular fa-circle-check"></i> Tidak ada momen.
+            </div>
+            <div class="del-header-actions">
+              <button
+                class="del-btn-icon del-btn-search"
+                :class="{ 'is-searching': showDeleteSearch }"
+                aria-label="Cari"
+                @click="showDeleteSearch = !showDeleteSearch; if (!showDeleteSearch) deleteSearchQuery = ''"
+              >
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+              <button class="del-btn-icon del-btn-close-v2" @click="closeDeleteMomentModal" aria-label="Tutup">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
           </div>
 
-          <div class="del-modal-footer">
-            <button class="del-btn-cancel" @click="closeDeleteMomentModal">Batal</button>
+          <!-- Year Filter (swipeable 3x3 grid, 9 years per page) -->
+          <div class="del-year-section">
+            <div
+              class="del-year-viewport"
+              @touchstart.prevent="delYearTouchStart"
+              @touchmove.prevent="delYearTouchMove"
+              @touchend.prevent="delYearTouchEnd"
+            >
+              <!-- Direction-aware sliding grid -->
+              <Transition :name="`year-slide-${delYearSlideDir}`" mode="out-in">
+                <div
+                  class="del-year-filter"
+                  :key="yearPageIndex"
+                  :style="delYearTrackStyle"
+                >
+                  <button
+                    v-for="year in delYearPageYears"
+                    :key="year"
+                    class="del-year-btn"
+                    :class="{ 'is-active': deleteSelectedYear === year }"
+                    @click.stop="deleteSelectedYear = year; deleteSelectedMonth = ''"
+                  >
+                    {{ year }}
+                  </button>
+                </div>
+              </Transition>
+            </div>
+            <!-- Page indicator dots -->
+            <div class="del-year-page-dots">
+              <span
+                v-for="p in delTotalYearPages"
+                :key="p"
+                class="del-year-dot"
+                :class="{ 'is-active': p - 1 === yearPageIndex }"
+                @click="yearPageIndex = p - 1"
+              ></span>
+            </div>
+          </div>
+
+          <!-- Month Pills: ALL 12 months always visible, scrollable -->
+          <div class="del-month-filter">
             <button
-              class="del-btn-confirm"
+              class="del-month-pill"
+              :class="{ 'is-active': deleteSelectedMonth === '' }"
+              @click="deleteSelectedMonth = ''"
+            >Semua</button>
+            <button
+              v-for="month in deleteMomentMonths"
+              :key="month"
+              class="del-month-pill"
+              :class="{
+                'is-active': deleteSelectedMonth === month,
+                'has-data': monthsWithData.has(month)
+              }"
+              @click="deleteSelectedMonth = month"
+            >{{ month }}</button>
+          </div>
+
+          <!-- Search Panel (shown when search toggled) -->
+          <Transition name="del-search-slide">
+            <div v-if="showDeleteSearch" class="del-search-panel">
+              <div class="del-search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass del-search-icon"></i>
+                <input
+                  ref="delSearchInputRef"
+                  v-model="deleteSearchQuery"
+                  type="text"
+                  class="del-search-input"
+                  placeholder="Cari judul atau lokasi..."
+                  @keydown.esc="showDeleteSearch = false; deleteSearchQuery = ''"
+                />
+                <button
+                  v-if="deleteSearchQuery"
+                  class="del-search-clear"
+                  @click="deleteSearchQuery = ''"
+                >
+                  <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+              </div>
+              <p class="del-search-hint">
+                Hasil di tahun <strong>{{ deleteSelectedYear }}</strong>
+              </p>
+            </div>
+          </Transition>
+
+          <!-- Moments List -->
+          <div class="del-list-v2">
+            <label
+              v-for="item in deleteFilteredMoments"
+              :key="item.id"
+              class="del-item-card"
+            >
+              <input type="checkbox" :value="item.id" v-model="selectedMomentsToDelete" class="del-checkbox" />
+              <div class="del-item-dot-v2" :style="{ backgroundColor: item.dotColor }"></div>
+              <div class="del-item-details">
+                <h4 class="del-item-title-v2">{{ item.title }}</h4>
+                <div class="del-item-meta-v2">
+                  <span><i class="fa-solid fa-location-dot"></i> {{ item.location || '—' }}</span>
+                  <span>·</span>
+                  <span><i class="fa-regular fa-calendar"></i> {{ item.date || '—' }}</span>
+                </div>
+              </div>
+            </label>
+            <div v-if="deleteFilteredMoments.length === 0" class="del-empty-v2">
+              <i class="fa-solid fa-ghost del-empty-ghost-icon"></i>
+              <p>Tidak ada momen di bulan ini.</p>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="del-modal-footer-v2">
+            <div class="del-footer-left">
+              <label class="del-select-all-v2">
+                <input
+                  type="checkbox"
+                  :checked="selectedMomentsToDelete.length === deleteFilteredMoments.length && deleteFilteredMoments.length > 0"
+                  @change="toggleDeleteSelectAllFiltered"
+                />
+                <span>Pilih Semua</span>
+              </label>
+            </div>
+            <span class="del-count"><span class="del-count-num">{{ selectedMomentsToDelete.length }}</span> terpilih</span>
+            <button
+              class="del-btn-delete-v2"
               :disabled="selectedMomentsToDelete.length === 0"
               @click="confirmDeleteMoments"
             >
               <i class="fa-solid fa-trash-can"></i>
-              Hapus{{ selectedMomentsToDelete.length > 0 ? ` (${selectedMomentsToDelete.length})` : '' }}
+              HAPUS
             </button>
           </div>
         </div>
@@ -2179,6 +2469,456 @@ body {
 }
 .del-btn-confirm:hover:not(:disabled) { transform: translate(-1px,-1px); }
 .del-btn-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════
+   DELETE MODAL V2 (with Year & Month Filters)
+══════════════════════════════════════════ */
+.del-modal-content-v2 {
+  background: #fdfdfd;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Full screen as per design */
+  overflow: hidden;
+}
+
+.del-modal-header-v2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 2.5px solid #101010;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.del-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.del-header-icon {
+  font-size: 1.6rem;
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.del-modal-title-v2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #101010;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.del-modal-subtitle-v2 {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 2px 0 0;
+  line-height: 1.3;
+}
+
+.del-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.del-btn-icon {
+  background: #fff;
+  border: 2px solid #101010;
+  font-size: 1rem;
+  color: #101010;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 2px 0 #101010;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.del-btn-icon:active { 
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #101010;
+}
+
+/* Year Section wrapper */
+.del-year-section {
+  flex-shrink: 0;
+  border-bottom: 1.5px solid #f1f5f9;
+  user-select: none;
+}
+
+/* Viewport clips the sliding track — height fixed so nothing below shifts */
+.del-year-viewport {
+  overflow: hidden;
+  /* 3 rows × ~40px + padding */
+  height: 144px;
+  position: relative;
+}
+
+/* The track slides left/right during drag */
+.del-year-track {
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+/* Year Filter Buttons (Grid 3 cols) */
+.del-year-filter {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 20px 28px 8px;
+}
+
+.del-year-btn {
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #9ca3af;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s;
+}
+.del-year-btn:hover { color: #6b7280; }
+.del-year-btn.is-active {
+  color: #ef4444;
+  font-size: 1.1rem;
+}
+
+/* Page indicator dots */
+.del-year-page-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0 10px;
+}
+.del-year-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e4e4e7;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.del-year-dot.is-active {
+  background: #ef4444;
+  transform: scale(1.3);
+}
+
+/* Month Pills Filter */
+.del-month-filter {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px 14px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  border-bottom: 1.5px solid #f1f5f9;
+}
+.del-month-filter::-webkit-scrollbar { display: none; }
+
+.del-month-pill {
+  padding: 6px 16px;
+  background: #f4f4f5;
+  border: none;
+  border-radius: 20px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #52525b;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.del-month-pill:hover { background: #e4e4e7; }
+.del-month-pill.is-active {
+  background: #101010;
+  color: #fff;
+}
+/* Month with data gets a subtle accent border */
+.del-month-pill.has-data:not(.is-active) {
+  color: #101010;
+  font-weight: 700;
+  background: #fff;
+  border: 1.5px solid #d1d5db;
+}
+
+/* ── Year grid slide transition (direction-aware) ── */
+/* Slide LEFT (going to later years: swipe right) */
+.year-slide-left-enter-active,
+.year-slide-left-leave-active,
+.year-slide-right-enter-active,
+.year-slide-right-leave-active {
+  transition: opacity 0.28s cubic-bezier(0.25,1,0.5,1),
+              transform 0.28s cubic-bezier(0.25,1,0.5,1);
+  position: absolute;
+  width: 100%;
+}
+.year-slide-left-enter-from  { opacity: 0; transform: translateX(60%); }
+.year-slide-left-leave-to    { opacity: 0; transform: translateX(-60%); }
+.year-slide-right-enter-from { opacity: 0; transform: translateX(-60%); }
+.year-slide-right-leave-to   { opacity: 0; transform: translateX(60%); }
+
+
+/* Search Panel */
+.del-search-panel {
+  padding: 12px 18px 8px;
+  border-bottom: 1.5px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.del-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.del-search-icon {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.del-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.92rem;
+  color: #111827;
+  background: transparent;
+}
+.del-search-input::placeholder { color: #9ca3af; }
+
+.del-search-clear {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.del-search-clear:hover { color: #ef4444; }
+
+.del-search-hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 6px 0 0 2px;
+}
+.del-search-hint strong { color: #374151; }
+
+/* Search button active state */
+.del-btn-search.is-searching {
+  background: #101010;
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Search panel slide transition */
+.del-search-slide-enter-active { transition: max-height 0.28s cubic-bezier(0.25,1,0.5,1), opacity 0.22s ease; }
+.del-search-slide-leave-active { transition: max-height 0.22s ease, opacity 0.18s ease; }
+.del-search-slide-enter-from,
+.del-search-slide-leave-to    { max-height: 0; opacity: 0; overflow: hidden; }
+.del-search-slide-enter-to,
+.del-search-slide-leave-from  { max-height: 120px; opacity: 1; }
+
+/* Moments List v2 */
+
+.del-list-v2 {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 18px 12px;
+}
+
+.del-item-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.del-item-card .del-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #101010;
+  flex-shrink: 0;
+  cursor: pointer;
+  margin: 0 6px 0 0;
+}
+
+.del-item-dot-v2 {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid #101010;
+}
+
+.del-item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.del-item-title-v2 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #1f2937;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.del-item-meta-v2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.del-item-meta-v2 i {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.del-empty-v2 {
+  text-align: center;
+  color: #9ca3af;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.del-empty-ghost-icon {
+  font-size: 3.5rem;
+  color: #d1d5db;
+  display: block;
+  animation: ghost-float 2.8s ease-in-out infinite;
+}
+
+@keyframes ghost-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+.del-empty-v2 p {
+  font-size: 0.9rem;
+  margin: 0;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Footer v2 */
+.del-modal-footer-v2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-top: 2.5px solid #101010;
+  background: #fdfdfd;
+  flex-shrink: 0;
+}
+
+.del-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.del-select-all-v2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #101010;
+  user-select: none;
+}
+
+.del-select-all-v2 input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #101010;
+  margin: 0;
+  cursor: pointer;
+}
+
+.del-count {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #52525b;
+}
+
+.del-count-num {
+  color: #ef4444;
+  font-weight: 800;
+}
+
+.del-btn-delete-v2 {
+  background: #fca5a5;
+  color: #101010;
+  border: 2px solid #101010;
+  padding: 10px 20px;
+  border-radius: 0;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 3px 3px 0 #101010;
+  transition: transform 0.1s, box-shadow 0.1s;
+  flex-shrink: 0;
+}
+.del-btn-delete-v2:hover:not(:disabled) {
+  background: #f87171;
+}
+.del-btn-delete-v2:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #101010;
+}
+.del-btn-delete-v2:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: translate(3px, 3px);
+}
 
 @media (max-width: 1024px) {
   .session-header { margin-left: -30px; margin-right: -30px; }

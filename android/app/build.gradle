@@ -10,10 +10,10 @@ configurations.all {
 
 
 android {
-    namespace "com.farhan.timelinemomen"
+    namespace "com.whoosh.app"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.farhan.timelinemomen"
+        applicationId "com.whoosh.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -29,6 +29,10 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-DEBUG"
         }
     }
 }

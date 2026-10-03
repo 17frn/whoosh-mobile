@@ -235,12 +235,20 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Province Map Modal -->
+    <ProvinceMapModal
+      ref="provinceMapModalRef"
+      :timeline-items="items"
+      @open-detail="openDetail"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import TimelineCard from '../components/feed/TimelineCard.vue';
+import ProvinceMapModal from '../components/shared/ProvinceMapModal.vue';
 import RecentHighlights from '../components/shared/RecentHighlights.vue';
 
 const props = defineProps({
@@ -372,7 +380,8 @@ const onTouchEnd = e => {
 };
 
 // ── Map & Detail ─────────────────────────────────────────────────────
-const openGlobalMap = () => window.dispatchEvent(new Event('open-global-map'));
+const provinceMapModalRef = ref(null);
+const openGlobalMap = () => provinceMapModalRef.value?.open();
 
 const openDetail = item => {
   activeDetailItemId.value = item.id;
@@ -427,7 +436,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 16px 12px;
+  padding: 16px 0 12px;
   margin-bottom: 8px;
   background: var(--theme-header-bg);
   border-bottom: 2px solid var(--theme-border, #101010);
@@ -439,6 +448,7 @@ onMounted(() => {
 
 .timeline-header-left {
   flex: 1;
+  padding-left: 16px;
 }
 
 .timeline-section-title {
@@ -455,9 +465,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-right: 16px;
 }
 
-/* Custom Year Dropdown (Neo Brutalism Pastel) */
+/* Custom Year Dropdown (Button: Normal, Menu: Neo Brutalism) */
 .year-selector-wrapper {
   position: relative;
   display: inline-flex;
@@ -467,27 +478,29 @@ onMounted(() => {
 
 .year-dropdown-btn {
   appearance: none;
-  background: var(--theme-surface, #ffffff);
-  color: var(--theme-text, #101010);
+  background: var(--theme-surface);
+  color: var(--theme-text);
   font-family: 'Inter', sans-serif;
   font-weight: 700;
   font-size: 0.8rem;
   padding: 6px 30px 6px 14px;
-  border: 1px solid var(--theme-border-light, #e5e7eb);
+  border: 1px solid var(--theme-border);
   border-radius: 8px;
   cursor: pointer;
   box-shadow: none;
   outline: none;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   position: relative;
 }
 
 .year-dropdown-btn:hover {
-  background: var(--theme-dropdown-hover, #f9fafb);
+  background: var(--theme-accent);
+  color: white;
+  border-color: var(--theme-accent);
 }
 
 .year-dropdown-btn:active {
-  background: var(--theme-dropdown-hover, #f3f4f6);
+  transform: scale(0.98);
 }
 
 .dropdown-icon {
@@ -496,8 +509,12 @@ onMounted(() => {
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
-  color: var(--theme-text, #101010);
   font-size: 0.75rem;
+  transition: color 0.2s ease;
+}
+
+.year-dropdown-btn:hover .dropdown-icon {
+  color: white;
 }
 
 .year-dropdown-overlay {
@@ -510,56 +527,76 @@ onMounted(() => {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 140px;
-  background: var(--theme-dropdown-bg, #ffffff);
-  border: 2px solid #101010;
-  box-shadow: 4px 4px 0 #ffe4e6, 4px 4px 0 2px #101010;
+  min-width: 140px;
+  background: var(--theme-surface);
+  border: 2px solid var(--theme-border);
+  border-radius: 0;
+  box-shadow: 4px 4px 0 var(--theme-accent-light), 4px 4px 0 2px var(--theme-border);
   z-index: 100;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .year-dropdown-item {
   background: transparent;
   border: none;
-  border-bottom: 2px solid #101010;
+  border-bottom: 2px solid var(--theme-border);
   padding: 12px 14px;
   font-family: 'Outfit', sans-serif;
   font-weight: 700;
   font-size: 1rem;
-  color: #101010;
+  color: var(--theme-text);
   text-align: left;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .year-dropdown-item:last-child {
   border-bottom: none;
 }
 
-.year-dropdown-item:hover, .year-dropdown-item.is-active {
-  background: var(--theme-dropdown-hover, #ffe4e6);
+.year-dropdown-item:hover {
+  background: var(--theme-accent-light);
+  color: var(--theme-text);
+}
+
+.year-dropdown-item.is-active {
+  background: var(--theme-accent);
+  color: white;
+  font-weight: 800;
 }
 
 .radio-circle {
   width: 16px;
   height: 16px;
-  border: 2px solid #101010;
+  border: 2px solid currentColor;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--theme-surface);
+  transition: all 0.15s;
+}
+
+.year-dropdown-item.is-active .radio-circle {
+  background: white;
+  border-color: white;
 }
 
 .radio-inner {
   width: 8px;
   height: 8px;
-  background: #101010;
   border-radius: 50%;
+  background: var(--theme-text);
+  transition: background 0.15s;
+}
+
+.year-dropdown-item.is-active .radio-inner {
+  background: var(--theme-accent);
 }
 
 /* Map button */
@@ -606,7 +643,7 @@ onMounted(() => {
 }
 
 .timeline-container {
-  padding: 0 16px 80px;
+  padding: 0 0 80px;
   position: relative;
 }
 
@@ -626,6 +663,8 @@ onMounted(() => {
 /* ── Month groups ────────────────────────────────────────────────── */
 .month-group {
   margin-bottom: 28px;
+  margin-left: 16px;
+  margin-right: 16px;
   position: relative;
   z-index: 1;
 }
@@ -892,8 +931,10 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 60px 24px;
+  margin: 0 16px;
   border: 2px dashed var(--theme-empty-border);
   background: var(--theme-surface-2);
+  border-radius: 16px;
 }
 
 .empty-icon {

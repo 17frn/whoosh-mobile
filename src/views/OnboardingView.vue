@@ -168,7 +168,7 @@
         </button>
 
         <p class="ob-footer-note">
-          Made with ❤️ by 17frn<br>v0.1
+          Made with ❤️ by 17frn<br>v1.0.0
         </p>
         
       </div>

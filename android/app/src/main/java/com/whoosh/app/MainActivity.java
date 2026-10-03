@@ -1,4 +1,4 @@
-package com.farhan.timelinemomen;
+package com.whoosh.app;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -131,6 +131,24 @@
         </div>
         <!-- /SCROLLABLE BODY -->
 
+        <!-- Photo warning strip — full width between body and footer -->
+        <Transition name="photo-warn">
+          <div v-if="photoWarning" 
+               class="photo-warning-toast"
+               :style="isSwiping ? { transform: `translateX(${swipeOffset}px)`, opacity: 1 - Math.abs(swipeOffset)/300, transition: 'none' } : (swipeOffset === 0 ? {} : { transform: `translateX(${swipeOffset}px)` })"
+               @touchstart="onTouchStart"
+               @touchmove="onTouchMove"
+               @touchend="onTouchEnd">
+            <div class="toast-content">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <span>{{ photoWarning }}</span>
+            </div>
+            <button type="button" class="btn-dismiss-toast" @click="photoWarning = ''" title="Tutup">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </Transition>
+
         <!-- STICKY FOOTER -->
         <div class="modal-sticky-footer">
           <!-- Tombol Tambah Foto (kiri) -->
@@ -213,15 +231,59 @@ const error = ref('');
 const existingPhotos = ref<any[]>([]);
 const sortableGrid = ref<HTMLElement | null>(null);
 
-let sortableInstance: any = null;
 
+
+const MAX_PHOTOS = 9;
 const selectedFiles = ref<File[]>([]);
 const selectedFileCount = computed(() => selectedFiles.value.length);
+const photoWarning = ref('');
+
+// Swipe to dismiss logic
+const swipeOffset = ref(0);
+const isSwiping = ref(false);
+let startX = 0;
+
+function onTouchStart(e: TouchEvent) {
+  startX = e.touches[0].clientX;
+  isSwiping.value = true;
+  swipeOffset.value = 0;
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!isSwiping.value) return;
+  swipeOffset.value = e.touches[0].clientX - startX;
+}
+
+function onTouchEnd() {
+  if (!isSwiping.value) return;
+  isSwiping.value = false;
+  if (Math.abs(swipeOffset.value) > 80) {
+    photoWarning.value = ''; // Dismiss
+  }
+  swipeOffset.value = 0;
+}
+
+function showPhotoWarning(msg: string) {
+  photoWarning.value = msg;
+}
 
 function handleFileChange(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    selectedFiles.value = Array.from(target.files);
+    const files = Array.from(target.files);
+    const existingCount = existingPhotos.value.length;
+    const available = MAX_PHOTOS - existingCount;
+    if (available <= 0) {
+      showPhotoWarning(`Sudah mencapai batas ${MAX_PHOTOS} foto. Hapus foto lama terlebih dahulu.`);
+      selectedFiles.value = [];
+      target.value = '';
+    } else if (files.length > available) {
+      showPhotoWarning(`Maksimal ${MAX_PHOTOS} foto. Hanya ${available} foto lagi yang bisa ditambahkan.`);
+      selectedFiles.value = files.slice(0, available);
+    } else {
+      selectedFiles.value = files;
+      photoWarning.value = '';
+    }
   } else {
     selectedFiles.value = [];
   }
@@ -248,7 +310,7 @@ onMounted(async () => {
     const Sortable = (await import('sortablejs')).default;
     setTimeout(() => {
       if (sortableGrid.value) {
-        sortableInstance = new Sortable(sortableGrid.value, {
+        void new Sortable(sortableGrid.value, {
           animation: 150,
           ghostClass: 'sortable-ghost',
           onEnd: (evt: any) => {
@@ -651,6 +713,45 @@ input:focus {
   transform: translate(3px, 3px);
   box-shadow: 0 0 0 #101010;
 }
+
+.photo-warning-toast {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ef4444;
+  color: #ffffff;
+  border-top: 2px solid #101010;
+  border-bottom: 2px solid #101010;
+  border-radius: 0;
+  padding: 7px 14px 7px 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: space-between;
+}
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.photo-warning-toast i { font-size: 0.8rem; flex-shrink: 0; }
+.btn-dismiss-toast {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-dismiss-toast:active { transform: scale(0.9); }
+.photo-warn-enter-active, .photo-warn-leave-active { transition: all 0.2s ease; }
+.photo-warn-enter-from, .photo-warn-leave-to { opacity: 0; transform: translateY(-4px); }
 
 /* Batal */
 .neo-btn-cancel {

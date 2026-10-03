@@ -4,9 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "node load-env.js && vite",
+    "build": "node load-env.js && vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "android:release": "node load-env.js && npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
+    "android:debug": "node load-env.js && npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "cap:run": "node load-env.js && npx cap run android -l",
+    "cap:sync": "node load-env.js && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
