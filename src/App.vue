@@ -600,17 +600,23 @@ async function handleAuthSuccess(result: {
 }
 
 // ── Logout ────────────────────────────────────────────────────────────
-function handleLogout() {
-  const tokenHint = isCloud.value
-    ? `\n\nToken Anda: ${activeSessionToken.value}`
-    : activeLocalShareToken.value
-      ? `\n\nToken Lokal Anda: ${activeLocalShareToken.value}\nSimpan ini untuk bergabung lagi!`
-      : '';
+const showLogoutModal = ref(false);
 
-  if (!confirm(`Apakah Anda yakin ingin keluar?${isCloud.value ? tokenHint + '\n\nSimpan token ini sebelum keluar!' : tokenHint}`)) {
-    return;
+const logoutTokenInfo = computed(() => {
+  if (isCloud.value && activeSessionToken.value) {
+    return { label: 'Token Cloud', token: activeSessionToken.value, isCloud: true };
+  } else if (activeLocalShareToken.value) {
+    return { label: 'Token Lokal', token: activeLocalShareToken.value, isCloud: false };
   }
+  return null;
+});
 
+function handleLogout() {
+  showLogoutModal.value = true;
+}
+
+function confirmLogout() {
+  showLogoutModal.value = false;
   if (isCloud.value) {
     localStorage.removeItem('tl_cloud_token');
     activeCloudSession.value = null;
@@ -619,10 +625,14 @@ function handleLogout() {
     activeLocalUsername.value = null;
     activeLocalShareToken.value = null;
   }
-
   authType.value = null;
   timelineItems.value = [];
   showOnboarding.value = true;
+}
+
+function copyLogoutToken() {
+  const t = logoutTokenInfo.value?.token;
+  if (t) navigator.clipboard.writeText(t).catch(() => {});
 }
 
 // ── Copy Token ────────────────────────────────────────────────────────
@@ -852,31 +862,35 @@ const delYearTrackStyle = computed(() => ({
 }));
 
 function delYearTouchStart(e: TouchEvent) {
-  delYearStartX          = e.touches[0].clientX;
-  delYearIsDragging.value = true;
-  delYearDragX.value     = 0;
+  delYearStartX           = e.touches[0].clientX;
+  delYearIsDragging.value = false; // start as NOT dragging; only drag after 8px
+  delYearDragX.value      = 0;
 }
 function delYearTouchMove(e: TouchEvent) {
-  if (!delYearIsDragging.value) return;
-  // Follow finger, clamped to ±80px for a "rubber band" feel
   const raw = e.touches[0].clientX - delYearStartX;
-  delYearDragX.value = Math.max(-80, Math.min(80, raw));
+  // Only enter drag mode after 8px movement to distinguish tap from drag
+  if (Math.abs(raw) > 8) {
+    delYearIsDragging.value = true;
+    delYearDragX.value = Math.max(-80, Math.min(80, raw));
+  }
 }
 function delYearTouchEnd(e: TouchEvent) {
+  const wasDragging = delYearIsDragging.value;
   delYearIsDragging.value = false;
+  delYearDragX.value = 0;
+
+  // Only change page if it was an actual swipe (not a tap on a button)
+  if (!wasDragging) return;
+
   const diff = e.changedTouches[0].clientX - delYearStartX;
   const threshold = 50;
-
   if (diff > threshold && yearPageIndex.value < delTotalYearPages.value - 1) {
-    // Swipe RIGHT → later years (2029+)
     delYearSlideDir.value = 'left';
     yearPageIndex.value++;
   } else if (diff < -threshold && yearPageIndex.value > 0) {
-    // Swipe LEFT → earlier years
     delYearSlideDir.value = 'right';
     yearPageIndex.value--;
   }
-  delYearDragX.value = 0;
 }
 
 // Close speed dial when switching tabs
@@ -1334,9 +1348,9 @@ async function handleDeleteMoments(ids: string[]) {
           <div class="del-year-section">
             <div
               class="del-year-viewport"
-              @touchstart.prevent="delYearTouchStart"
+              @touchstart="delYearTouchStart"
               @touchmove.prevent="delYearTouchMove"
-              @touchend.prevent="delYearTouchEnd"
+              @touchend="delYearTouchEnd"
             >
               <!-- Direction-aware sliding grid -->
               <Transition :name="`year-slide-${delYearSlideDir}`" mode="out-in">
@@ -1462,6 +1476,45 @@ async function handleDeleteMoments(ids: string[]) {
             </button>
           </div>
         </div>
+      </div>
+    </Transition>
+
+    <!-- LOGOUT MODAL — Neo Brutalism -->
+    <Transition name="fade">
+      <div v-if="showLogoutModal" class="logout-overlay" @click.self="showLogoutModal = false">
+        <Transition name="logout-pop" appear>
+          <div v-if="showLogoutModal" class="logout-dialog">
+
+            <!-- Header row -->
+            <div class="logout-header">
+              <span class="logout-badge">⚠ KELUAR</span>
+              <button class="logout-close-x" @click="showLogoutModal = false">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <h3 class="logout-title">Yakin mau cabut?</h3>
+
+            <!-- Token box -->
+            <div v-if="logoutTokenInfo" class="logout-token-box">
+              <span class="logout-token-lbl">{{ logoutTokenInfo.label }}</span>
+              <div class="logout-token-row">
+                <code class="logout-token-val">{{ logoutTokenInfo.token }}</code>
+                <button class="logout-copy-btn" @click="copyLogoutToken">
+                  <i class="fa-regular fa-copy"></i>
+                </button>
+              </div>
+              <p class="logout-token-note">Simpan dulu baru keluar!</p>
+            </div>
+
+            <!-- Actions -->
+            <div class="logout-actions">
+              <button class="lo-btn lo-btn--cancel" @click="showLogoutModal = false">Batal</button>
+              <button class="lo-btn lo-btn--go" @click="confirmLogout">Keluar</button>
+            </div>
+
+          </div>
+        </Transition>
       </div>
     </Transition>
 
@@ -2839,7 +2892,162 @@ body {
   font-weight: 500;
 }
 
+/* ═════════════ LOGOUT MODAL — Neo Brutalism ═════════════ */
+.logout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.logout-dialog {
+  background: #fdfdfd;
+  border: 3px solid #101010;
+  box-shadow: 6px 6px 0 #101010;
+  border-radius: 4px;
+  padding: 22px 22px 20px;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Header row */
+.logout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logout-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  background: #ef4444;
+  color: #fff;
+  padding: 3px 8px;
+  border: 1.5px solid #101010;
+  border-radius: 2px;
+}
+.logout-close-x {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.logout-close-x:hover { color: #111827; }
+
+/* Title */
+.logout-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* Token box */
+.logout-token-box {
+  background: #f9fafb;
+  border: 2px solid #101010;
+  border-radius: 4px;
+  padding: 10px 12px 8px;
+  box-shadow: 3px 3px 0 #101010;
+}
+.logout-token-lbl {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #9ca3af;
+}
+.logout-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.logout-token-val {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #111827;
+  word-break: break-all;
+}
+.logout-copy-btn {
+  background: #101010;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.logout-copy-btn:hover { opacity: 0.7; }
+.logout-token-note {
+  font-size: 0.72rem;
+  color: #f59e0b;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+
+/* Action buttons */
+.logout-actions {
+  display: flex;
+  gap: 10px;
+}
+.lo-btn {
+  flex: 1;
+  padding: 10px 0;
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: 0.88rem;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 2px solid #101010;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.lo-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #101010 !important;
+}
+.lo-btn--cancel {
+  background: #fff;
+  color: #101010;
+  box-shadow: 3px 3px 0 #101010;
+}
+.lo-btn--cancel:hover { background: #f3f4f6; }
+.lo-btn--go {
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 3px 3px 0 #101010;
+}
+.lo-btn--go:hover { background: #dc2626; }
+
+/* Animations */
+.logout-pop-enter-active { transition: transform 0.28s cubic-bezier(0.25,1,0.5,1), opacity 0.22s ease; }
+.logout-pop-leave-active { transition: transform 0.18s ease, opacity 0.15s ease; }
+.logout-pop-enter-from  { transform: scale(0.88) translateY(12px); opacity: 0; }
+.logout-pop-leave-to    { transform: scale(0.92); opacity: 0; }
+
 /* Footer v2 */
+
 .del-modal-footer-v2 {
   display: flex;
   align-items: center;
